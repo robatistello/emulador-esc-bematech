@@ -1,0 +1,130 @@
+EMULADOR ESCBEMATECH
+====================
+
+Impressora térmica virtual para testar impressões no padrão
+EscBematech (Bematech). Funciona com qualquer sistema que imprima nesse
+padrão por rede (TCP/RAW). Cada impressão recebida aparece num histórico
+no navegador.
+
+
+COMO USAR
+---------
+
+1. Se recebeu o programa em .zip, clique com o botão direito no zip,
+   escolha "Extrair Tudo" e coloque os arquivos numa pasta onde você
+   possa gravar (por exemplo, em Documentos). Não abra o .exe de
+   dentro do zip: o Windows o rodaria numa pasta temporária e o
+   histórico se perderia.
+
+2. Abra o EmuladorEscBematech.exe. Não é preciso instalar nada.
+   Na primeira vez, o Windows pode mostrar "O Windows protegeu o
+   computador", porque o programa não tem assinatura digital. Clique
+   em "Mais informações" e depois em "Executar assim mesmo".
+   O programa fica como um ícone de impressora na bandeja do Windows,
+   perto do relógio. Se não aparecer, procure na setinha de ícones
+   ocultos.
+
+3. Configure o sistema que vai imprimir (veja abaixo) e imprima
+   normalmente.
+
+4. Para ver as impressões, dê duplo clique no ícone, ou clique com o
+   botão direito e escolha "Abrir histórico". O histórico também abre
+   no navegador pelo endereço http://127.0.0.1:9101
+
+Para fechar, clique com o botão direito no ícone e escolha "Sair".
+Abrir o programa de novo enquanto ele já está aberto só mostra o
+histórico.
+
+
+INICIAR COM O WINDOWS
+---------------------
+
+O programa não se coloca sozinho na inicialização. Para que ele abra
+ao ligar o computador:
+
+1. Aperte as teclas Windows + R, digite shell:startup e confirme.
+   Abre a pasta "Inicializar".
+2. Clique com o botão direito no EmuladorEscBematech.exe e escolha
+   "Mostrar mais opções" > "Criar atalho" (no Windows 10, direto
+   "Criar atalho").
+3. Mova o atalho criado para a pasta "Inicializar".
+
+Use um atalho, e não o próprio .exe: o programa precisa continuar na
+pasta original, onde fica o histórico. Para desfazer, apague o atalho
+da pasta "Inicializar".
+
+
+CONFIGURAR O SISTEMA QUE IMPRIME
+--------------------------------
+
+- Modelo da impressora: Bematech / EscBematech
+  (em sistemas que usam o ACBr, o modelo é ppEscBematech)
+- Conexão: rede TCP/RAW, endereço 127.0.0.1, porta 9100
+  (no ACBr, a porta fica TCP:127.0.0.1:9100)
+- Colunas da fonte normal: 48
+- Página de código: CP850 (também aceita CP437, CP860 e UTF-8)
+- Não habilite a leitura de status da impressora: o emulador não
+  responde a essa consulta.
+
+Cada corte de papel gera uma impressão no histórico. Sem corte, a
+impressão é salva quando a conexão é encerrada ou após 60 segundos
+sem receber dados.
+
+
+O HISTÓRICO
+-----------
+
+- Fica salvo na pasta "data", ao lado do programa, e continua lá
+  depois de fechar e abrir de novo. Para levar o histórico para outro
+  computador, copie essa pasta junto com o .exe.
+- A busca procura pelo número ou pelo texto da impressão.
+- Cada impressão pode ser baixada como imagem (PNG), para enviar por
+  mensagem ou e-mail, ou com os comandos originais (.bin). O nome do
+  arquivo leva o número, a data e a hora da impressão.
+- O botão de sol/lua no canto superior alterna entre tema claro e
+  escuro.
+- Aberturas de gaveta aparecem na lista com o número da gaveta.
+- "Limpar histórico" apaga todas as impressões.
+
+
+OUTRAS PORTAS OU OUTRO COMPUTADOR
+---------------------------------
+
+As opções abaixo podem ser usadas no Prompt de Comando, na pasta do
+programa, ou no campo "Destino" de um atalho:
+
+  EmuladorEscBematech.exe --port 9102 --web-port 9103
+      Usa outras portas: impressora na 9102 e histórico na 9103.
+      No sistema, a porta da impressora passa a ser a 9102.
+
+  EmuladorEscBematech.exe --host 0.0.0.0
+      Aceita impressões de outros computadores da rede. No sistema,
+      use o IP deste computador e a porta 9100. Abra o histórico pelo
+      IP, por exemplo http://192.168.0.10:9101. Pode ser preciso
+      liberar as portas no Firewall do Windows. O histórico não tem
+      senha: use só em rede confiável.
+
+
+PROBLEMAS COMUNS
+----------------
+
+- "A porta 9100 já está em uso por outro programa": outro programa
+  está usando a porta. Feche-o ou use --port com outro número e
+  ajuste a porta no sistema que imprime.
+- O sistema fica esperando ou dá tempo esgotado: desabilite a leitura de
+  status da impressora.
+- Imagens, logotipos e códigos de barras não são desenhados; aparecem
+  como aviso abaixo da impressão. QR code é desenhado normalmente.
+
+
+SOBRE
+-----
+
+Emulador EscBematech, desenvolvido por Rodrigo Batistello
+https://github.com/robatistello
+
+A versão aparece no rodapé do histórico e em Propriedades > Detalhes
+do EmuladorEscBematech.exe. Informe-a ao relatar algum problema.
+
+Licença MIT. Para ver as licenças de terceiros, rode no Prompt de
+Comando: EmuladorEscBematech.exe --licenses

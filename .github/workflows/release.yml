@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Conferir versão
+        shell: pwsh
+        run: |
+          $version = (Select-String -LiteralPath server.py -Pattern '^VERSION = "(.+)"$').Matches[0].Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "A tag $env:GITHUB_REF_NAME não corresponde a VERSION = $version no server.py."
+          }
+
+      - name: Testes
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tests/test_paper.cjs
+
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1 -Python python
+
+      - name: Compactar
+        shell: pwsh
+        run: |
+          $zip = "EmuladorEscBematech-$($env:GITHUB_REF_NAME.TrimStart('v')).zip"
+          Compress-Archive -Path outputs/EmuladorEscBematech.exe, outputs/LEIA-ME.txt -DestinationPath $zip
+          "ZIP=$zip" >> $env:GITHUB_ENV
+
+      - name: Publicar release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create $env:GITHUB_REF_NAME $env:ZIP
+          --title "Emulador EscBematech $env:GITHUB_REF_NAME"
+          --generate-notes
