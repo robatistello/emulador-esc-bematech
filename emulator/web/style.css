@@ -1,3 +1,17 @@
+/* As fontes vão junto com a página para ela ter a mesma aparência em qualquer sistema. */
+@font-face {
+  font-family: 'Paper Mono';
+  src: url('/fonts/roboto-mono.woff2') format('woff2');
+  font-weight: 100 700;
+}
+
+@font-face {
+  font-family: 'Interface';
+  src: url('/fonts/roboto.woff2') format('woff2');
+  font-weight: 100 900;
+  font-stretch: 75% 100%;
+}
+
 :root {
   color-scheme: light;
   --bg: #edf1f5;
@@ -44,7 +58,15 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px system-ui;
+  font:
+    15px 'Interface',
+    system-ui,
+    sans-serif;
+}
+
+button,
+input {
+  font-family: inherit;
 }
 
 header {
@@ -225,7 +247,7 @@ a {
   width: 364px;
   margin: 25px auto;
   padding: 24px 14px;
-  font-family: Consolas, monospace;
+  font-family: 'Paper Mono', monospace;
   font-size: 13px;
   color: #171717;
   overflow: auto;

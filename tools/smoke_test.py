@@ -14,7 +14,14 @@ from urllib.request import urlopen
 from send_demo import build_demo
 
 ROOT = Path(__file__).resolve().parent.parent
-STATIC_FILES = ("/style.css", "/app.js", "/paper.js", "/qrcode.js")
+STATIC_FILES = (
+    "/style.css",
+    "/app.js",
+    "/paper.js",
+    "/qrcode.js",
+    "/fonts/roboto.woff2",
+    "/fonts/roboto-mono.woff2",
+)
 
 
 def source_version():

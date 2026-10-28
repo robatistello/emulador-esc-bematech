@@ -42,6 +42,8 @@ STATIC = {
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/paper.js": ("paper.js", "application/javascript; charset=utf-8"),
     "/qrcode.js": ("qrcode.js", "application/javascript; charset=utf-8"),
+    "/fonts/roboto.woff2": ("fonts/roboto.woff2", "font/woff2"),
+    "/fonts/roboto-mono.woff2": ("fonts/roboto-mono.woff2", "font/woff2"),
 }
 
 
@@ -281,7 +283,10 @@ def web_handler(history):
                 self.send_error(404)
 
         def send_static(self, name, content_type):
-            body = (WEB_DIR / name).read_bytes().replace(b"{{VERSION}}", VERSION.encode())
+            body = (WEB_DIR / name).read_bytes()
+            if content_type.startswith("text/html"):
+                body = body.replace(b"{{VERSION}}", VERSION.encode())
+
             self.send_body(body, content_type)
 
         def send_job_list(self):

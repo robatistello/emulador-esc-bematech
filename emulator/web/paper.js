@@ -6,6 +6,10 @@
   };
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const QR_BORDER = 4;
+  const FONT_FAMILY = "'Paper Mono', monospace";
+  const FONT_FILES = [{ weight: '100 700', url: '/fonts/roboto-mono.woff2' }];
+
+  let embeddedFontStyle = null;
 
   const qrcode = root.qrcode || require('./qrcode.js');
 
@@ -147,7 +151,7 @@
       const text = svgElement('text', {
         x: chunk.x,
         y: top + chunk.baseline,
-        'font-family': 'Consolas, monospace',
+        'font-family': FONT_FAMILY,
         'font-size': chunk.glyphHeight,
         'font-weight': chunk.bold ? '700' : '400',
         fill: '#171717',
@@ -195,7 +199,38 @@
     return warnings;
   }
 
-  function paperPng(container, margin = 24) {
+  function toBase64(bytes) {
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
+  }
+
+  async function fontFaceRule({ weight, url }) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw Error('Não foi possível carregar a fonte do papel.');
+    }
+
+    const data = toBase64(new Uint8Array(await response.arrayBuffer()));
+    return `@font-face{font-family:'Paper Mono';font-weight:${weight};src:url(data:font/woff2;base64,${data}) format('woff2')}`;
+  }
+
+  // Um SVG aberto como imagem não enxerga as fontes da página nem busca arquivos
+  // externos; a fonte precisa ir dentro dele, codificada.
+  function fontStyle() {
+    embeddedFontStyle ??= Promise.all(FONT_FILES.map(fontFaceRule))
+      .then((rules) => rules.join(''))
+      .catch((error) => {
+        embeddedFontStyle = null;
+        throw error;
+      });
+
+    return embeddedFontStyle;
+  }
+
+  async function paperPng(container, margin = 24) {
     const page = document.createElementNS(SVG_NS, 'svg');
     let width = 0;
     let height = margin;
@@ -209,7 +244,10 @@
     }
     height += margin;
 
-    page.prepend(svgElement('rect', { width: '100%', height: '100%', fill: '#fffdf4' }));
+    const style = document.createElementNS(SVG_NS, 'style');
+    style.textContent = await fontStyle();
+
+    page.prepend(style, svgElement('rect', { width: '100%', height: '100%', fill: '#fffdf4' }));
     setAttributes(page, { xmlns: SVG_NS, width, height, viewBox: `0 0 ${width} ${height}` });
 
     const svgText = new XMLSerializer().serializeToString(page);

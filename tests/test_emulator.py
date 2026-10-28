@@ -290,6 +290,11 @@ class ServerTests(unittest.TestCase):
             with self.subTest(path=path), self.request(path) as response:
                 self.assertIn(marker, response.read())
 
+        for path in ("/fonts/roboto.woff2", "/fonts/roboto-mono.woff2"):
+            with self.subTest(path=path), self.request(path) as response:
+                self.assertEqual(response.headers["Content-Type"], "font/woff2")
+                self.assertEqual(response.read(4), b"wOF2")
+
     def test_unchanged_list_answers_not_modified(self):
         self.send(b"Texto\n")
 

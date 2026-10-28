@@ -17,6 +17,7 @@ const rules = {
 
 const browser = {
   atob: 'readonly',
+  btoa: 'readonly',
   Blob: 'readonly',
   confirm: 'readonly',
   document: 'readonly',

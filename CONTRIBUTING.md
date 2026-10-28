@@ -14,6 +14,7 @@ emulator/            código do programa
   tray.py            ícone da bandeja do Windows, pela API Win32 com ctypes
   printer.ico        ícone da bandeja e do .exe
   web/               página do histórico (HTML, CSS e JavaScript)
+    fonts/           Roboto (interface) e Roboto Mono (papel)
 packaging/           build dos executáveis, LEIA-ME de cada pacote e avisos de licença
   licenses/          textos de licença das bibliotecas que o Python embute no executável
 tests/               testes Python (unittest) e do renderizador (Node)
@@ -66,6 +67,16 @@ Os testes Python cobrem o parser (com os bytes entregues um a um, como o pior ca
 - **Funções pequenas:** cada função faz uma coisa; um bloco que precisa de um comentário para dizer o que faz geralmente vira uma função com esse nome.
 - **Comentários:** só quando explicam um porquê que o código não mostra, como detalhes do protocolo, peculiaridades do Windows ou segurança. Não descreva o que o código faz nem o histórico das mudanças.
 - **Termos:** cada envio é uma *impressão* na interface e um `job` no código. Não use "recibo" ou `receipt`: nem todo envio é recibo (gaveta, relatórios, DANFE).
+
+## Fontes da página
+
+A página leva as próprias fontes, para ter a mesma aparência em qualquer sistema: a Roboto na interface e a Roboto Mono no papel, que também vai embutida no PNG exportado. As duas são fontes variáveis, com todos os pesos num arquivo só, baixadas do repositório [google/fonts](https://github.com/google/fonts) (`ofl/roboto` e `ofl/robotomono`) e apenas convertidas para WOFF2, sem tirar caracteres:
+
+```bash
+uvx --from fonttools --with brotli fonttools ttLib.woff2 compress "RobotoMono[wght].ttf" -o emulator/web/fonts/roboto-mono.woff2
+```
+
+A Roboto Mono não tem os desenhos de caixa e blocos do CP437 e do CP850 (`═ ║ ╔ ░ ▒ ▓`); quando uma impressão usa esses caracteres, o navegador os desenha com uma fonte monoespaçada do sistema.
 
 ## Formatação
 
