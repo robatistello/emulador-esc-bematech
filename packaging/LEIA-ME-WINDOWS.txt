@@ -138,5 +138,6 @@ https://github.com/robatistello
 A versão aparece no rodapé do histórico e em Propriedades > Detalhes
 do EmuladorEscBematech.exe. Informe-a ao relatar algum problema.
 
-Licença MIT. Para ver as licenças de terceiros, rode no Prompt de
-Comando: EmuladorEscBematech.exe --licenses
+Licença MIT. As licenças do Python e das bibliotecas incluídas no
+programa estão no THIRD-PARTY-NOTICES.txt, ao lado do .exe, e também
+aparecem com: EmuladorEscBematech.exe --licenses

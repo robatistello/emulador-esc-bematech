@@ -133,6 +133,11 @@ try {
     New-Item -ItemType Directory -Force -Path $WorkPath | Out-Null
     Write-VersionInfo $versionFile $versionParts
 
+    $noticesPath = Join-Path $WorkPath 'THIRD-PARTY-NOTICES.txt'
+    Invoke-Checked 'Não foi possível montar os avisos de licença.' {
+        & $buildPython (Join-Path $PSScriptRoot 'notices.py') windows $noticesPath
+    }
+
     $pyInstallerArguments = @(
         '--noconfirm', '--clean', '--onefile', '--windowed',
         '--name', 'EmuladorEscBematech',
@@ -141,7 +146,7 @@ try {
         '--paths', $ProjectRoot,
         '--add-data', "$(Join-Path $PackagePath 'web'):emulator/web",
         '--add-data', "${IconPath}:emulator",
-        '--add-data', "$(Join-Path $ProjectRoot 'THIRD-PARTY-NOTICES.txt'):.",
+        '--add-data', "${noticesPath}:.",
         '--distpath', $DistPath,
         '--workpath', $PyInstallerWorkPath,
         '--specpath', $WorkPath,
@@ -150,7 +155,8 @@ try {
     Invoke-Checked 'Falha ao gerar o executável.' { & $buildPython -m PyInstaller @pyInstallerArguments }
 
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LEIA-ME-WINDOWS.txt') -Destination (Join-Path $DistPath 'LEIA-ME.txt') -Force
-    Write-Host "Pronto: $ExePath $($versionParts -join '.') e LEIA-ME.txt"
+    Copy-Item -LiteralPath $noticesPath -Destination $DistPath -Force
+    Write-Host "Pronto: $ExePath $($versionParts -join '.'), LEIA-ME.txt e THIRD-PARTY-NOTICES.txt"
 } finally {
     $env:PYINSTALLER_CONFIG_DIR = $previousCacheDir
     Pop-Location

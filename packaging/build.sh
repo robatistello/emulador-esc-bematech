@@ -36,19 +36,21 @@ prepare_environment() {
 
 build_executable() {
     export PYINSTALLER_CONFIG_DIR="$work/pyinstaller-cache"
+    "$venv/bin/python" "$packaging_dir/notices.py" linux "$work/THIRD-PARTY-NOTICES.txt"
 
     "$venv/bin/python" -m PyInstaller \
         --noconfirm --clean --onefile \
         --name EmuladorEscBematech \
         --paths "$project_root" \
         --add-data "$package_dir/web:emulator/web" \
-        --add-data "$project_root/THIRD-PARTY-NOTICES.txt:." \
+        --add-data "$work/THIRD-PARTY-NOTICES.txt:." \
         --distpath "$dist" \
         --workpath "$work/pyinstaller" \
         --specpath "$work" \
         "$package_dir/__main__.py"
 
     cp "$packaging_dir/LEIA-ME-LINUX.txt" "$dist/LEIA-ME.txt"
+    cp "$work/THIRD-PARTY-NOTICES.txt" "$dist/"
 }
 
 required_glibc() {
@@ -88,4 +90,4 @@ if [ "$(printf '%s\n' "$max_glibc" "$required" | sort -V | tail -1)" != "$max_gl
     fail "O executável exige $required; o máximo aceito é $max_glibc."
 fi
 
-echo "Pronto: $dist/EmuladorEscBematech $version e LEIA-ME.txt (exige $required)"
+echo "Pronto: $dist/EmuladorEscBematech $version, LEIA-ME.txt e THIRD-PARTY-NOTICES.txt (exige $required)"

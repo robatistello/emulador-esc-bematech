@@ -12,7 +12,8 @@ emulator/            código do programa
   tray.py            ícone da bandeja do Windows, pela API Win32 com ctypes
   printer.ico        ícone da bandeja e do .exe
   web/               página do histórico (HTML, CSS e JavaScript)
-packaging/           build dos executáveis e LEIA-ME de cada pacote
+packaging/           build dos executáveis, LEIA-ME de cada pacote e avisos de licença
+  licenses/          textos de licença das bibliotecas que o Python embute no executável
 tests/               testes Python (unittest) e do renderizador (Node)
 tools/               send_demo.py (impressão de exemplo) e smoke_test.py (teste do executável)
 docs/                imagens do README
@@ -107,6 +108,17 @@ O script cria o ambiente `.venv-build`, instala o PyInstaller e gera `outputs\wi
 ```
 
 O script gera `outputs/linux/EmuladorEscBematech` com o Python do uv, que é compilado para glibc 2.17; com o Python do sistema, o binário só abriria em distribuições tão novas quanto a máquina do build. No fim, ele confere a glibc exigida e falha se passar de 2.17. As pastas do Linux (`.venv-build-linux`, `work/linux`, `outputs/linux`) são separadas das do Windows, para a mesma cópia do projeto poder ser compilada pelos dois.
+
+### Licenças nos executáveis
+
+O repositório só contém código de terceiros no `qrcode.js`, coberto pelo `THIRD-PARTY-NOTICES.txt` da raiz. Os executáveis, porém, levam o interpretador Python e bibliotecas nativas (OpenSSL, libffi, SQLite, mpdecimal e outras), cujas licenças pedem que o texto acompanhe o binário. Por isso os dois scripts de build rodam o `packaging/notices.py`, que monta um `THIRD-PARTY-NOTICES.txt` completo: o da raiz mais as licenças do Python embutido. Esse arquivo vai dentro do executável, para o `--licenses`, e ao lado dele no pacote.
+
+- **Windows:** usa o `LICENSE.txt` que o instalador do Python já traz (Python, condições da Microsoft, bzip2, libffi, zstd e OpenSSL) e completa com os textos de `packaging/licenses` para mpdecimal, zlib-ng, liblzma e SQLite.
+- **Linux:** usa os textos de `packaging/licenses`, tirados do pacote completo do [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (release `20261013`), que é de onde vem o Python do uv. A lista segue o `PYTHON.json` desse pacote: só entram as bibliotecas ligadas dentro da `libpython`, que é o que o PyInstaller empacota.
+
+Ao trocar a versão do Python do build, confira se as bibliotecas embutidas mudaram.
+
+### Teste do executável
 
 Para conferir um executável compilado, o teste rápido abre o programa em portas livres, envia a impressão de exemplo e verifica o histórico:
 

@@ -179,5 +179,6 @@ https://github.com/robatistello
 Para ver a versão: ./EmuladorEscBematech --version
 Informe-a ao relatar algum problema.
 
-Licença MIT. Para ver as licenças de terceiros:
-./EmuladorEscBematech --licenses
+Licença MIT. As licenças do Python e das bibliotecas incluídas no
+programa estão no THIRD-PARTY-NOTICES.txt, ao lado do programa, e
+também aparecem com: ./EmuladorEscBematech --licenses

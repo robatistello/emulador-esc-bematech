@@ -108,4 +108,4 @@ Testes, padrão de escrita do código, formatação, build dos executáveis e pu
 
 ## Licença
 
-Desenvolvido por [Rodrigo Batistello](https://github.com/robatistello) e distribuído sob a licença MIT; veja [LICENSE](LICENSE). A geração de QR usa o qrcode-generator (MIT); veja [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Desenvolvido por [Rodrigo Batistello](https://github.com/robatistello) e distribuído sob a licença MIT; veja [LICENSE](LICENSE). A geração de QR usa o qrcode-generator (MIT); veja [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). Os executáveis também levam o Python e as bibliotecas que ele usa; as licenças desses componentes acompanham cada pacote, no `THIRD-PARTY-NOTICES.txt` ao lado do programa, e aparecem com `--licenses`.

@@ -45,7 +45,7 @@ jobs:
         shell: pwsh
         run: |
           $zip = "EmuladorEscBematech-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows.zip"
-          Compress-Archive -Path outputs/windows/EmuladorEscBematech.exe, outputs/windows/LEIA-ME.txt -DestinationPath $zip
+          Compress-Archive -Path outputs/windows/EmuladorEscBematech.exe, outputs/windows/LEIA-ME.txt, outputs/windows/THIRD-PARTY-NOTICES.txt -DestinationPath $zip
 
       - uses: actions/upload-artifact@v7
         with:
