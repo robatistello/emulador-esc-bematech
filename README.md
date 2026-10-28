@@ -108,4 +108,6 @@ Testes, padrão de escrita do código, formatação, build dos executáveis e pu
 
 ## Licença
 
+Este é um projeto independente, sem vínculo, patrocínio ou endosso dos titulares da marca Bematech. Bematech é marca de seus respectivos titulares; o nome aparece aqui só para indicar compatibilidade com o padrão de comandos EscBematech.
+
 Desenvolvido por [Rodrigo Batistello](https://github.com/robatistello) e distribuído sob a licença MIT; veja [LICENSE](LICENSE). A geração de QR usa o qrcode-generator (MIT); veja [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). Os executáveis também levam o Python e as bibliotecas que ele usa; as licenças desses componentes acompanham cada pacote, no `THIRD-PARTY-NOTICES.txt` ao lado do programa, e aparecem com `--licenses`.
