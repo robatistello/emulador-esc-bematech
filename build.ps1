@@ -8,8 +8,11 @@ $previousCacheDir = $env:PYINSTALLER_CONFIG_DIR
 Push-Location $PSScriptRoot
 try {
     $workRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'work'))
-    $buildWorkPath = Join-Path $workRoot 'pyinstaller'
-    $buildCachePath = Join-Path $workRoot 'pyinstaller-cache'
+    $windowsWorkPath = Join-Path $workRoot 'windows'
+    $buildWorkPath = Join-Path $windowsWorkPath 'pyinstaller'
+    $buildCachePath = Join-Path $windowsWorkPath 'pyinstaller-cache'
+    $distPath = Join-Path $PSScriptRoot 'outputs\windows'
+    $exePath = Join-Path $distPath 'EmuladorEscBematech.exe'
     if ((Test-Path -LiteralPath $workRoot) -and ((Get-Item -LiteralPath $workRoot -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw "A pasta work e um link; limpeza cancelada."
     }
@@ -36,6 +39,9 @@ try {
         Write-Host "Limpeza concluida. Fontes, historico e executavel preservados."
         return
     }
+    if (Get-Process EmuladorEscBematech -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exePath }) {
+        throw "O emulador está aberto ($exePath). Saia dele pela bandeja antes de compilar."
+    }
     $env:PYINSTALLER_CONFIG_DIR = $buildCachePath
     & $Python -m venv .venv-build
     if ($LASTEXITCODE -ne 0) { throw "Não foi possível criar o ambiente de build." }
@@ -51,8 +57,8 @@ try {
     $versionParts = $versionMatch.Matches[0].Groups[1..3] | ForEach-Object { $_.Value }
     $version = $versionParts -join '.'
     $versionTuple = ($versionParts + '0') -join ', '
-    $versionFile = Join-Path $workRoot 'version-info.txt'
-    New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
+    $versionFile = Join-Path $windowsWorkPath 'version-info.txt'
+    New-Item -ItemType Directory -Force -Path $windowsWorkPath | Out-Null
     @"
 VSVersionInfo(
   ffi=FixedFileInfo(filevers=($versionTuple), prodvers=($versionTuple), mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
@@ -70,10 +76,10 @@ VSVersionInfo(
   ]
 )
 "@ | Set-Content -LiteralPath $versionFile -Encoding ASCII
-    & $buildPython -m PyInstaller --noconfirm --clean --onefile --windowed --name EmuladorEscBematech --icon $iconPath --version-file $versionFile --add-data $webResource --add-data $licenseResource --add-data $iconResource --distpath outputs --workpath $buildWorkPath --specpath work server.py
+    & $buildPython -m PyInstaller --noconfirm --clean --onefile --windowed --name EmuladorEscBematech --icon $iconPath --version-file $versionFile --add-data $webResource --add-data $licenseResource --add-data $iconResource --distpath $distPath --workpath $buildWorkPath --specpath $windowsWorkPath server.py
     if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar o executável." }
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LEIA-ME-WINDOWS.txt') -Destination (Join-Path outputs 'LEIA-ME.txt') -Force
-    Write-Host "Pronto: $PSScriptRoot\outputs\EmuladorEscBematech.exe $version e LEIA-ME.txt"
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LEIA-ME-WINDOWS.txt') -Destination (Join-Path $distPath 'LEIA-ME.txt') -Force
+    Write-Host "Pronto: $exePath $version e LEIA-ME.txt"
 } finally {
     $env:PYINSTALLER_CONFIG_DIR = $previousCacheDir
     Pop-Location

@@ -38,11 +38,14 @@ jobs:
         shell: pwsh
         run: .\build.ps1 -Python python
 
+      - name: Testar o executável
+        run: python tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe
+
       - name: Compactar
         shell: pwsh
         run: |
           $zip = "EmuladorEscBematech-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows.zip"
-          Compress-Archive -Path outputs/EmuladorEscBematech.exe, outputs/LEIA-ME.txt -DestinationPath $zip
+          Compress-Archive -Path outputs/windows/EmuladorEscBematech.exe, outputs/windows/LEIA-ME.txt -DestinationPath $zip
 
       - uses: actions/upload-artifact@v7
         with:
@@ -58,50 +61,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # O Python do uv é compilado para glibc 2.17; com o do sistema, o binário
-      # só abriria em distribuições tão novas quanto a máquina de build.
       - uses: astral-sh/setup-uv@v10.3.2
-
-      - name: Ambiente de build
-        run: |
-          uv python install 3.14
-          uv venv --managed-python --python 3.14 .venv-build
-          uv pip install --python .venv-build/bin/python -r requirements-build.txt
 
       - name: Testes
         run: |
-          .venv-build/bin/python -m unittest discover -s tests -v
+          uv run --no-project --managed-python --python 3.14 python -m unittest discover -s tests -v
           node tests/test_paper.cjs
 
       - name: Build
-        run: >
-          .venv-build/bin/python -m PyInstaller --noconfirm --clean --onefile
-          --name EmuladorEscBematech
-          --add-data "$PWD/web:web" --add-data "$PWD/THIRD-PARTY-NOTICES.txt:."
-          --distpath outputs --workpath work/pyinstaller --specpath work server.py
+        run: bash build.sh
 
-      - name: Testar o binário
-        run: |
-          data=$(mktemp -d)
-          ./outputs/EmuladorEscBematech --db "$data/history.sqlite3" &
-          pid=$!
-          for attempt in $(seq 30); do curl -sf http://127.0.0.1:9101/ >/dev/null && break; sleep 1; done
-          curl -sf http://127.0.0.1:9101/paper.js >/dev/null
-          .venv-build/bin/python tools/send_demo.py --qr
-          for attempt in $(seq 10); do
-            curl -sf http://127.0.0.1:9101/api/jobs | grep -q '"id"' && break
-            sleep 1
-          done
-          curl -sf http://127.0.0.1:9101/api/jobs | grep -q '"id"'
-          kill $pid
-          wait $pid || true
+      - name: Testar o executável
+        run: python3 tools/smoke_test.py outputs/linux/EmuladorEscBematech
 
       - name: Compactar
         run: |
           name="EmuladorEscBematech-${GITHUB_REF_NAME#v}-linux"
-          mkdir "$name"
-          cp outputs/EmuladorEscBematech "$name/"
-          cp LEIA-ME-LINUX.txt "$name/LEIA-ME.txt"
+          cp -r outputs/linux "$name"
           tar -czf "$name.tar.gz" "$name"
 
       - uses: actions/upload-artifact@v7

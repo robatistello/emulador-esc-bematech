@@ -4,7 +4,7 @@ Emulador simples de impressora térmica com um único protocolo: **EscBematech**
 
 ## Executar no Windows
 
-Após compilar esta versão, abra `outputs/EmuladorEscBematech.exe`: ele fica na bandeja do Windows, perto do relógio, sem manter uma janela de terminal. Dê duplo clique no ícone de impressora para abrir o histórico. Ao passar o mouse, a dica mostra a porta da impressora. O botão direito oferece **Abrir histórico** e **Sair**. Se o Windows esconder o ícone, procure na seta de ícones ocultos.
+Após compilar esta versão, abra `outputs/windows/EmuladorEscBematech.exe`: ele fica na bandeja do Windows, perto do relógio, sem manter uma janela de terminal. Dê duplo clique no ícone de impressora para abrir o histórico. Ao passar o mouse, a dica mostra a porta da impressora. O botão direito oferece **Abrir histórico** e **Sair**. Se o Windows esconder o ícone, procure na seta de ícones ocultos.
 
 O executável inclui o Python e a página do histórico; não exige instalar Python. Roda no Windows 10 ou 11 de 64 bits (ou Windows Server 2016 em diante) e pode ser copiado para outro computador, numa pasta com permissão de escrita; o Python embutido não funciona no Windows 7 nem no 8. O histórico fica em `data/history.sqlite3` ao lado do executável. Copie essa pasta junto ao programa para levar as impressões anteriores. A opção **Sair** para os servidores e salva os dados já recebidos de impressões em andamento. Erros de inicialização, como porta ocupada, aparecem em uma caixa de mensagem.
 
@@ -45,7 +45,7 @@ chmod +x EmuladorEscBematech
 
 O `chmod` repõe a permissão de execução quando o pacote foi extraído por uma ferramenta do Windows. O histórico fica em `data/history.sqlite3` ao lado do executável; numa pasta sem permissão de escrita, use `--db`. As demais opções são as mesmas do Windows. Não há inicialização automática embutida; o [LEIA-ME-LINUX.txt](LEIA-ME-LINUX.txt), que vai no pacote com o nome `LEIA-ME.txt`, explica como rodar o emulador como serviço de usuário do systemd.
 
-Pelos fontes, com Python 3.10 ou superior, basta `python3 server.py`. O executável Linux é gerado apenas pelo GitHub Actions; não há script de build local.
+Pelos fontes, com Python 3.10 ou superior, basta `python3 server.py`. Para gerar o executável Linux, veja [Compilar e testar](#compilar-e-testar).
 
 ## Configurar o sistema que imprime
 
@@ -62,7 +62,7 @@ Portas e banco alternativos, tanto nos fontes quanto no executável:
 
 ```powershell
 py server.py --port 9102 --web-port 9103 --db data/teste.sqlite3
-.\outputs\EmuladorEscBematech.exe --port 9102 --web-port 9103
+.\outputs\windows\EmuladorEscBematech.exe --port 9102 --web-port 9103
 ```
 
 Para receber de outro computador, use `--host 0.0.0.0` e configure o cliente com o IP local do emulador. O histórico deve ser aberto pelo IP (por exemplo `http://192.168.0.10:9101`) ou por `localhost`; nomes de máquina são recusados para impedir DNS rebinding. Pode ser necessário liberar as portas no Firewall. A interface não possui autenticação; destina-se a testes em uma rede controlada.
@@ -97,11 +97,27 @@ Para gerar o executável, abra o PowerShell na pasta do projeto:
 .\build.ps1
 ```
 
-O script cria um ambiente isolado, instala `requirements-build.txt` e gera `outputs/EmuladorEscBematech.exe`, copiando ao lado, com o nome `LEIA-ME.txt`, o [LEIA-ME-WINDOWS.txt](LEIA-ME-WINDOWS.txt) com as instruções para quem vai usar. Python não é necessário nas máquinas que usam o executável; envie os dois arquivos juntos.
+O script cria um ambiente isolado, instala `requirements-build.txt` e gera `outputs/windows/EmuladorEscBematech.exe`, copiando ao lado, com o nome `LEIA-ME.txt`, o [LEIA-ME-WINDOWS.txt](LEIA-ME-WINDOWS.txt) com as instruções para quem vai usar. Python não é necessário nas máquinas que usam o executável; envie os dois arquivos juntos.
 
-Antes de compilar, o script remove os arquivos temporários de `work/pyinstaller` e o cache local `work/pyinstaller-cache`, inclusive arquivos marcados como somente leitura. Não apaga fontes, histórico ou o executável anterior. Para apenas limpar, sem instalar dependências ou compilar, use `.\build.ps1 -CleanOnly`. Se houver um arquivo em uso, a limpeza interrompe com erro; feche o processo de compilação anterior e tente novamente. Encerre o emulador antes de compilar para permitir a substituição do `.exe`.
+Antes de compilar, o script remove os arquivos temporários de `work/windows/pyinstaller` e o cache local `work/windows/pyinstaller-cache`, inclusive arquivos marcados como somente leitura. Não apaga fontes, histórico ou o executável anterior. Para apenas limpar, sem instalar dependências ou compilar, use `.\build.ps1 -CleanOnly`. Se houver um arquivo em uso, a limpeza interrompe com erro; feche o processo de compilação anterior e tente novamente. Se o `.exe` de `outputs/windows` estiver aberto, o script para antes de compilar e pede para sair dele pela bandeja.
 
 O script usa o lançador `py` quando ele está instalado, e o comando `python` caso contrário; assim não depende do atalho da Microsoft Store que o Windows coloca no PATH. Para escolher outra instalação, informe o caminho com `-Python`, por exemplo `.\build.ps1 -Python 'C:\Python312\python.exe'`. A primeira compilação precisa de acesso à internet para instalar as dependências.
+
+Para gerar o executável Linux, num Linux x86_64 ou no WSL, com o [uv](https://docs.astral.sh/uv/) e o `objdump` (pacote `binutils`) instalados:
+
+```bash
+./build.sh
+```
+
+O script gera `outputs/linux/EmuladorEscBematech` e copia ao lado, como `LEIA-ME.txt`, o [LEIA-ME-LINUX.txt](LEIA-ME-LINUX.txt). Ele usa o Python do uv, compilado para glibc 2.17, e não o Python do sistema; no fim, confere a versão de glibc que o executável exige e falha se passar de 2.17, para que ele continue abrindo em distribuições antigas. Os arquivos temporários ficam em `work/linux` e o ambiente em `.venv-build-linux`, separados dos do Windows; assim, a mesma pasta pode ser compilada pelo Windows e pelo WSL.
+
+Para conferir um executável compilado, o mesmo teste rápido do release o abre em portas livres, envia a impressão de exemplo e verifica o histórico:
+
+```powershell
+py tools\smoke_test.py outputs\windows\EmuladorEscBematech.exe
+```
+
+No Linux, `python3 tools/smoke_test.py outputs/linux/EmuladorEscBematech`.
 
 Para executar os testes pelos fontes:
 
@@ -122,7 +138,7 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-O GitHub Actions (`.github/workflows/release.yml`) confere se a tag bate com `VERSION`, roda os testes e compila nos dois sistemas. No Windows, executa o `build.ps1` e gera o `EmuladorEscBematech-X.Y.Z-windows.zip`, com o `EmuladorEscBematech.exe` e o `LEIA-ME.txt`. No Linux, compila com o Python do [uv](https://docs.astral.sh/uv/), feito para glibc 2.17, para que o executável não exija uma distribuição tão nova quanto a máquina do GitHub; antes de empacotar o `EmuladorEscBematech-X.Y.Z-linux.tar.gz`, abre o executável, envia a impressão de exemplo e confere que ela chegou ao histórico. A Release só é criada se os dois lados passarem. O teste da bandeja é pulado lá, porque a máquina não tem área de trabalho interativa.
+O GitHub Actions (`.github/workflows/release.yml`) confere se a tag bate com `VERSION`, roda os testes e compila nos dois sistemas. No Windows, executa o `build.ps1` e empacota o `EmuladorEscBematech-X.Y.Z-windows.zip`, com o `EmuladorEscBematech.exe` e o `LEIA-ME.txt`; no Linux, executa o `build.sh` e empacota o `EmuladorEscBematech-X.Y.Z-linux.tar.gz`. Antes de empacotar, nos dois sistemas, o `tools/smoke_test.py` abre o executável compilado, confere a versão, envia a impressão de exemplo e verifica que ela chegou ao histórico. A Release só é criada se os dois lados passarem. O teste da bandeja é pulado lá, porque a máquina não tem área de trabalho interativa.
 
 Além disso, `.github/workflows/tests.yml` roda os testes no Windows e no Linux a cada push na `main` e em pull requests, sem gerar executável.
 

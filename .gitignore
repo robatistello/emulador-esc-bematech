@@ -4,3 +4,4 @@ __pycache__/
 /work/
 /.venv/
 /.venv-build/
+/.venv-build-linux/
