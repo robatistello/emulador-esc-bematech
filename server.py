@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent
 # Os recursos do .exe ficam em uma pasta temporária; o histórico precisa
 # permanecer ao lado do executável para sobreviver a cada nova execução.
 DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 SERVER_NAME = "EmuladorEscBematech"
 STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
           "/paper.js": ("paper.js", "application/javascript; charset=utf-8"),
@@ -305,14 +305,14 @@ def main(argv=None):
     args.add_argument("--port", type=int, default=9100, help="Porta da impressora (padrão: 9100)")
     args.add_argument("--web-port", type=int, default=9101, help="Porta do histórico no navegador (padrão: 9101)")
     args.add_argument("--db", type=Path, default=DATA_ROOT / "data" / "history.sqlite3",
-                      help="Arquivo do histórico (padrão: data\\history.sqlite3 ao lado do programa)")
+                      help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)")
     args.add_argument("--version", action="version", version=f"Emulador EscBematech {VERSION}",
                       help="Mostra a versão e sai")
     args.add_argument("--licenses", action="store_true", help="Exibe licenças das bibliotecas incluídas")
     mode = args.add_mutually_exclusive_group()
     mode.add_argument("--tray", dest="tray", action="store_true", help="Executa na bandeja do Windows")
     mode.add_argument("--console", dest="tray", action="store_false", help="Executa no terminal")
-    args.set_defaults(tray=bool(getattr(sys, "frozen", False)))
+    args.set_defaults(tray=getattr(sys, "frozen", False) and sys.platform == "win32")
     config = args.parse_args(argv)
     if config.licenses:
         print((ROOT / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))

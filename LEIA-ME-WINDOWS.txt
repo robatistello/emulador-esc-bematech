@@ -6,6 +6,9 @@ EscBematech (Bematech). Funciona com qualquer sistema que imprima nesse
 padrão por rede (TCP/RAW). Cada impressão recebida aparece num histórico
 no navegador.
 
+Funciona no Windows 10 ou 11 de 64 bits. Não abre no Windows 7 nem
+no 8.
+
 
 COMO USAR
 ---------
@@ -77,7 +80,16 @@ O HISTÓRICO
 - Fica salvo na pasta "data", ao lado do programa, e continua lá
   depois de fechar e abrir de novo. Para levar o histórico para outro
   computador, copie essa pasta junto com o .exe.
-- A busca procura pelo número ou pelo texto da impressão.
+- Se a aba do histórico estiver em segundo plano, o título dela mostra
+  quantas impressões novas chegaram, por exemplo "(2) Emulador
+  EscBematech", e o ícone da aba ganha um ponto vermelho.
+- Marque "Mostrar novas impressões automaticamente" para que cada
+  impressão nova apareça assim que chegar. Aberturas de gaveta
+  sozinhas não tiram a impressão da tela.
+- A busca procura pelo número ou pelo começo do texto da impressão
+  (os primeiros 90 caracteres, mais ou menos as duas primeiras
+  linhas). Itens e totais mais abaixo não são encontrados. Digite,
+  por exemplo, #10 para achar só a impressão 10.
 - Cada impressão pode ser baixada como imagem (PNG), para enviar por
   mensagem ou e-mail, ou com os comandos originais (.bin). O nome do
   arquivo leva o número, a data e a hora da impressão.

@@ -72,7 +72,7 @@ VSVersionInfo(
 "@ | Set-Content -LiteralPath $versionFile -Encoding ASCII
     & $buildPython -m PyInstaller --noconfirm --clean --onefile --windowed --name EmuladorEscBematech --icon $iconPath --version-file $versionFile --add-data $webResource --add-data $licenseResource --add-data $iconResource --distpath outputs --workpath $buildWorkPath --specpath work server.py
     if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar o executável." }
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LEIA-ME.txt') -Destination outputs -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LEIA-ME-WINDOWS.txt') -Destination (Join-Path outputs 'LEIA-ME.txt') -Force
     Write-Host "Pronto: $PSScriptRoot\outputs\EmuladorEscBematech.exe $version e LEIA-ME.txt"
 } finally {
     $env:PYINSTALLER_CONFIG_DIR = $previousCacheDir

@@ -1,0 +1,183 @@
+EMULADOR ESCBEMATECH PARA LINUX
+===============================
+
+Impressora térmica virtual para testar impressões no padrão
+EscBematech (Bematech). Funciona com qualquer sistema que imprima nesse
+padrão por rede (TCP/RAW). Cada impressão recebida aparece num histórico
+no navegador.
+
+O programa roda em Linux de 64 bits (x86_64) e não precisa de Python
+nem de outra instalação. Funciona no CentOS 7, Debian 11, Ubuntu
+20.04 e versões mais novas, e na maioria das outras distribuições
+(exige glibc 2.17 ou mais nova). Não funciona no Alpine nem em ARM,
+como o Raspberry Pi. No Linux não há ícone na bandeja: o emulador roda
+no terminal.
+
+
+COMO USAR
+---------
+
+1. Extraia o arquivo numa pasta onde você possa gravar:
+
+     tar -xzf EmuladorEscBematech-*-linux.tar.gz
+
+2. Entre na pasta, garanta a permissão de execução e abra o programa:
+
+     cd EmuladorEscBematech-*-linux
+     chmod +x EmuladorEscBematech
+     ./EmuladorEscBematech
+
+   O chmod é necessário quando o arquivo foi extraído por uma
+   ferramenta do Windows ou copiado de um disco do Windows, que tiram
+   essa permissão; nos outros casos, não muda nada.
+
+3. Configure o sistema que vai imprimir (veja abaixo) e imprima
+   normalmente.
+
+4. Para ver as impressões, abra no navegador o endereço
+   http://127.0.0.1:9101
+
+Para fechar, aperte Ctrl+C no terminal. Abrir o programa de novo
+enquanto ele já está aberto só abre o histórico no navegador.
+
+
+INICIAR COM O SISTEMA
+---------------------
+
+O programa não se coloca sozinho na inicialização. Nas distribuições
+com systemd (a maioria), ele pode rodar como serviço do seu usuário,
+sem precisar de administrador:
+
+1. Mova a pasta extraída para um nome fixo na sua pasta pessoal. Assim,
+   ao atualizar, basta trocar o programa dentro dela, e o histórico
+   continua no mesmo lugar:
+
+     mv EmuladorEscBematech-*-linux ~/EmuladorEscBematech
+
+2. Crie o arquivo ~/.config/systemd/user/emulador-escbematech.service
+   com o conteúdo abaixo (%h é a sua pasta pessoal):
+
+     [Unit]
+     Description=Emulador EscBematech
+
+     [Service]
+     ExecStart=%h/EmuladorEscBematech/EmuladorEscBematech
+     Restart=on-failure
+
+     [Install]
+     WantedBy=default.target
+
+   Opções como --port ou --host vão no fim da linha ExecStart.
+
+3. Ative o serviço. Ele abre agora e a cada vez que você entrar na
+   sua conta:
+
+     systemctl --user enable --now emulador-escbematech
+
+4. Para que ele abra junto com o computador, mesmo antes de você
+   entrar na conta, rode uma vez:
+
+     sudo loginctl enable-linger $USER
+
+Comandos úteis:
+
+  systemctl --user stop emulador-escbematech
+      Para o emulador até a próxima inicialização.
+  systemctl --user restart emulador-escbematech
+      Reinicia, por exemplo depois de trocar o programa por uma
+      versão nova. Se mudar o arquivo .service, rode antes
+      systemctl --user daemon-reload
+  journalctl --user -u emulador-escbematech
+      Mostra as mensagens do programa.
+  systemctl --user disable --now emulador-escbematech
+      Desfaz a inicialização automática. Depois, apague o arquivo
+      .service.
+
+No WSL, o serviço só abre quando o próprio WSL é iniciado, e não junto
+com o Windows; além disso, o systemd precisa estar ligado em
+/etc/wsl.conf. No Windows, prefira o EmuladorEscBematech.exe, que tem
+instruções próprias para iniciar com o sistema.
+
+
+CONFIGURAR O SISTEMA QUE IMPRIME
+--------------------------------
+
+- Modelo da impressora: Bematech / EscBematech
+  (em sistemas que usam o ACBr, o modelo é ppEscBematech)
+- Conexão: rede TCP/RAW, endereço 127.0.0.1, porta 9100
+  (no ACBr, a porta fica TCP:127.0.0.1:9100)
+- Colunas da fonte normal: 48
+- Página de código: CP850 (também aceita CP437, CP860 e UTF-8)
+- Não habilite a leitura de status da impressora: o emulador não
+  responde a essa consulta.
+
+Cada corte de papel gera uma impressão no histórico. Sem corte, a
+impressão é salva quando a conexão é encerrada ou após 60 segundos
+sem receber dados.
+
+
+O HISTÓRICO
+-----------
+
+- Fica salvo na pasta "data", ao lado do programa, e continua lá
+  depois de fechar e abrir de novo. Se o programa estiver numa pasta
+  sem permissão de escrita, indique outro arquivo com --db, por
+  exemplo: ./EmuladorEscBematech --db ~/emulador/history.sqlite3
+- Se a aba do histórico estiver em segundo plano, o título dela mostra
+  quantas impressões novas chegaram, por exemplo "(2) Emulador
+  EscBematech", e o ícone da aba ganha um ponto vermelho.
+- Marque "Mostrar novas impressões automaticamente" para que cada
+  impressão nova apareça assim que chegar. Aberturas de gaveta
+  sozinhas não tiram a impressão da tela.
+- A busca procura pelo número ou pelo começo do texto da impressão
+  (os primeiros 90 caracteres, mais ou menos as duas primeiras
+  linhas). Itens e totais mais abaixo não são encontrados. Digite,
+  por exemplo, #10 para achar só a impressão 10.
+- Cada impressão pode ser baixada como imagem (PNG) ou com os
+  comandos originais (.bin).
+- "Limpar histórico" apaga todas as impressões.
+
+
+OUTRAS PORTAS OU OUTRO COMPUTADOR
+---------------------------------
+
+  ./EmuladorEscBematech --port 9102 --web-port 9103
+      Usa outras portas: impressora na 9102 e histórico na 9103.
+      No sistema, a porta da impressora passa a ser a 9102.
+
+  ./EmuladorEscBematech --host 0.0.0.0
+      Aceita impressões de outros computadores da rede. No sistema,
+      use o IP deste computador e a porta 9100. Abra o histórico pelo
+      IP, por exemplo http://192.168.0.10:9101. Pode ser preciso
+      liberar as portas no firewall. O histórico não tem senha: use
+      só em rede confiável.
+
+Portas abaixo de 1024 exigem permissão de administrador; as portas
+padrão (9100 e 9101) não precisam.
+
+
+PROBLEMAS COMUNS
+----------------
+
+- "Permissão negada" ao abrir: o arquivo perdeu a permissão de
+  execução. Rode chmod +x EmuladorEscBematech
+- "A porta 9100 já está em uso por outro programa": feche o outro
+  programa ou use --port com outro número e ajuste a porta no sistema
+  que imprime.
+- O sistema fica esperando ou dá tempo esgotado: desabilite a leitura de
+  status da impressora.
+- Imagens, logotipos e códigos de barras não são desenhados; aparecem
+  como aviso abaixo da impressão. QR code é desenhado normalmente.
+
+
+SOBRE
+-----
+
+Emulador EscBematech, desenvolvido por Rodrigo Batistello
+https://github.com/robatistello
+
+Para ver a versão: ./EmuladorEscBematech --version
+Informe-a ao relatar algum problema.
+
+Licença MIT. Para ver as licenças de terceiros:
+./EmuladorEscBematech --licenses

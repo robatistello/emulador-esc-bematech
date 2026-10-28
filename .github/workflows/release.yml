@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  windows:
     runs-on: windows-latest
     env:
       PYTHONUTF8: "1"
@@ -41,15 +41,90 @@ jobs:
       - name: Compactar
         shell: pwsh
         run: |
-          $zip = "EmuladorEscBematech-$($env:GITHUB_REF_NAME.TrimStart('v')).zip"
+          $zip = "EmuladorEscBematech-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows.zip"
           Compress-Archive -Path outputs/EmuladorEscBematech.exe, outputs/LEIA-ME.txt -DestinationPath $zip
-          "ZIP=$zip" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: EmuladorEscBematech-*-windows.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  linux:
+    runs-on: ubuntu-24.04
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      # O Python do uv é compilado para glibc 2.17; com o do sistema, o binário
+      # só abriria em distribuições tão novas quanto a máquina de build.
+      - uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Ambiente de build
+        run: |
+          uv python install 3.14
+          uv venv --managed-python --python 3.14 .venv-build
+          uv pip install --python .venv-build/bin/python -r requirements-build.txt
+
+      - name: Testes
+        run: |
+          .venv-build/bin/python -m unittest discover -s tests -v
+          node tests/test_paper.cjs
+
+      - name: Build
+        run: >
+          .venv-build/bin/python -m PyInstaller --noconfirm --clean --onefile
+          --name EmuladorEscBematech
+          --add-data "$PWD/web:web" --add-data "$PWD/THIRD-PARTY-NOTICES.txt:."
+          --distpath outputs --workpath work/pyinstaller --specpath work server.py
+
+      - name: Testar o binário
+        run: |
+          data=$(mktemp -d)
+          ./outputs/EmuladorEscBematech --db "$data/history.sqlite3" &
+          pid=$!
+          for attempt in $(seq 30); do curl -sf http://127.0.0.1:9101/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:9101/paper.js >/dev/null
+          .venv-build/bin/python tools/send_demo.py --qr
+          for attempt in $(seq 10); do
+            curl -sf http://127.0.0.1:9101/api/jobs | grep -q '"id"' && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:9101/api/jobs | grep -q '"id"'
+          kill $pid
+          wait $pid || true
+
+      - name: Compactar
+        run: |
+          name="EmuladorEscBematech-${GITHUB_REF_NAME#v}-linux"
+          mkdir "$name"
+          cp outputs/EmuladorEscBematech "$name/"
+          cp LEIA-ME-LINUX.txt "$name/LEIA-ME.txt"
+          tar -czf "$name.tar.gz" "$name"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: EmuladorEscBematech-*-linux.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
 
       - name: Publicar release
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create $env:GITHUB_REF_NAME $env:ZIP
-          --title "Emulador EscBematech $env:GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME"
+          EmuladorEscBematech-*-windows.zip EmuladorEscBematech-*-linux.tar.gz
+          --repo "$GITHUB_REPOSITORY"
+          --title "Emulador EscBematech $GITHUB_REF_NAME"
           --generate-notes

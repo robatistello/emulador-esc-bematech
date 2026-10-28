@@ -40,9 +40,10 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(len(restored.list()), 2)
                 self.assertEqual(restored.get(2)["lines"][0]["spans"][0]["text"], "Pendente")
                 self.assertEqual(restored.get(2)["events"][0]["pulse_ms"], 200)
-                for address in (tcp_address, web_address):
-                    with socket.socket() as probe:
-                        probe.bind(address)
+                reopened = SimpleNamespace(host="127.0.0.1", port=tcp_address[1], web_port=web_address[1],
+                                           db=config.db)
+                with running_servers(reopened):
+                    pass
             finally:
                 if client:
                     client.close()
