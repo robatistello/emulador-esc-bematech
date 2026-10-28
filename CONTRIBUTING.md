@@ -2,6 +2,8 @@
 
 Este guia reúne o que é preciso para desenvolver o emulador: estrutura do projeto, testes, padrão de escrita, formatação, build dos executáveis e publicação de versões. Para usar o emulador, veja o [README](README.md).
 
+Contribuições são bem-vindas! Correções pequenas podem ir direto num pull request. Para mudanças maiores, como um comando novo ou uma alteração na interface, vale abrir uma issue antes para conversarmos sobre a ideia e alinharmos o caminho juntos desde o começo. Ao abrir o pull request, o GitHub mostra um modelo com o que ajuda na revisão.
+
 ## Estrutura
 
 ```
