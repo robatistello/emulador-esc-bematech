@@ -15,7 +15,7 @@ node tests/test_paper.cjs                # testes do renderizador e do QR
 python tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe  # abre o executável compilado e confere uma impressão
 ```
 
-Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittest`. Depois de editar a página ou o teste Node, rode `npx prettier@3.9.10 --write web tests/test_paper.cjs`; o CI confere com `--check`.
+Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittest`. Depois de editar, formate: `uvx ruff@0.17.3 format` para o Python e `npx prettier@3.9.10 --write web tests/test_paper.cjs` para a página e o teste Node; o CI confere os dois com `--check`.
 
 ## Arquitetura
 
@@ -38,7 +38,7 @@ Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittes
 - **Idiomas**: identificadores em inglês; interface, mensagens, comentários, README e mensagens de commit em português.
 - **Público**: o emulador é genérico para sistemas que imprimem em EscBematech. Cite o ACBr só como exemplo de configuração ou referência dos comandos, nunca como o sistema-alvo, e não cite sistemas específicos que o usam.
 - **Termos**: cada envio é uma *impressão* na interface e um `job` no código. Não use "recibo"/`receipt`; nem todo envio é recibo (gaveta, relatórios, DANFE).
-- **Formatação**: HTML, CSS e JavaScript seguem o Prettier (`.prettierrc.json`), com uma linha em branco entre funções e regras de CSS; o Prettier preserva essas linhas, mas não as cria. `web/qrcode.js` fica de fora (`.prettierignore`).
+- **Formatação**: 120 colunas. Python segue o Ruff (`ruff.toml`); HTML, CSS e JavaScript seguem o Prettier (`.prettierrc.json`), com uma linha em branco entre funções e regras de CSS, que o Prettier preserva, mas não cria. `web/qrcode.js` fica de fora (`.prettierignore`).
 - **Comentários**: só quando explicam um porquê que o código não mostra (protocolo, peculiaridades do Windows, segurança). Não descreva o que o código faz nem o histórico das mudanças.
 - **Banco**: o esquema é criado direto, sem migrações. Ao mudar a tabela, os bancos existentes podem ser apagados.
 - **Versão**: constante `VERSION` no `server.py` (`maior.menor.correção`); página, `--version`, cabeçalho `Server` e propriedades do `.exe` leem dela. Não repita o número em outro arquivo.

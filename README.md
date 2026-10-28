@@ -127,13 +127,44 @@ py -m unittest discover -s tests -v
 
 Os testes verificam fragmentação byte a byte, comandos Bematech, QR binário, cortes, recebimento TCP, API HTTP, limpeza e persistência. No Windows, também verificam o ícone nativo, as ações da bandeja e o encerramento com impressão pendente. Se tiver Node.js, `node tests/test_paper.cjs` verifica também a geometria do renderizador e a geração do QR; Node não é necessário para executar o emulador.
 
-O HTML, o CSS e o JavaScript da pasta `web` seguem a formatação do [Prettier](https://prettier.io/), configurado em `.prettierrc.json`; a biblioteca `web/qrcode.js` fica de fora, por ser de terceiros. Depois de editar a página, formate com:
+## Formatação do código
+
+O código segue dois formatadores, com 120 colunas nos dois. O `tests.yml` confere a formatação a cada push e falha se algum arquivo estiver fora do padrão. As versões ficam fixas nos comandos para que todos formatem igual. Nenhum dos dois é necessário para executar ou compilar o emulador.
+
+| Arquivos | Ferramenta | Configuração |
+|---|---|---|
+| Python (`.py` e `.pyw`) | [Ruff](https://docs.astral.sh/ruff/) | `ruff.toml` |
+| HTML, CSS e JavaScript da pasta `web` e `tests/test_paper.cjs` | [Prettier](https://prettier.io/) | `.prettierrc.json`; o `.prettierignore` deixa de fora o `web/qrcode.js`, por ser de terceiros |
+
+**Instalação.** O Prettier precisa do [Node.js](https://nodejs.org/) (versão LTS), o mesmo dos testes do renderizador; o `npx` baixa o Prettier sozinho na primeira vez. O Ruff roda pelo [uv](https://docs.astral.sh/uv/), que também o baixa sozinho. Para instalar o uv no Windows, no PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+No Linux ou no WSL:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Sem o uv, dá para instalar o Ruff pelo pip, com `py -m pip install ruff==0.17.3`, e rodar `py -m ruff` no lugar de `uvx ruff@0.17.3`.
+
+**Uso.** Na pasta do projeto, depois de editar:
+
+```bash
+uvx ruff@0.17.3 format
+```
 
 ```bash
 npx prettier@3.9.10 --write web tests/test_paper.cjs
 ```
 
-O `tests.yml` confere a formatação com `--check` e falha se algum desses arquivos estiver fora do padrão.
+Para só conferir, sem alterar nada, use `uvx ruff@0.17.3 format --check` e `npx prettier@3.9.10 --check web tests/test_paper.cjs`, que é o que o CI faz.
+
+O Prettier mantém as linhas em branco que já existem, mas não cria novas: ao escrever uma função ou regra de CSS, deixe uma linha em branco antes dela, como no resto do código.
+
+**No editor.** No VS Code, as extensões oficiais [Ruff](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) e [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) leem as mesmas configurações do projeto. Com "Format On Save" ligado nas configurações, cada arquivo é formatado ao salvar.
 
 ## Versão
 

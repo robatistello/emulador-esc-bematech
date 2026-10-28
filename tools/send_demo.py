@@ -7,12 +7,16 @@ def qr_command(data, error=1, module=8):
 
 
 def build_demo(qr=False):
-    job = (b"\x1d\xf9\x20\x00\x1b@\x1bt\x02\x1ba\x01\x1bE\x1bW\x01\x1bd\x01"
-           + "CAFÉ EXEMPLO\n".encode("cp850")
-           + b"\x1bW\x00\x1bd\x00\x1bFRua das Flores, 123\n\n\x1ba\x00"
-           + "1 Café                                 R$  6,00\n2 Pães                                 R$  8,00\n".encode("cp850")
-           + b"------------------------------------------------\n\x1bETOTAL                                  R$ 14,00\n\x1bF"
-           + b"\n\x1ba\x01Obrigado pela visita!\n")
+    job = (
+        b"\x1d\xf9\x20\x00\x1b@\x1bt\x02\x1ba\x01\x1bE\x1bW\x01\x1bd\x01"
+        + "CAFÉ EXEMPLO\n".encode("cp850")
+        + b"\x1bW\x00\x1bd\x00\x1bFRua das Flores, 123\n\n\x1ba\x00"
+        + "1 Café                                 R$  6,00\n2 Pães                                 R$  8,00\n".encode(
+            "cp850"
+        )
+        + b"------------------------------------------------\n\x1bETOTAL                                  R$ 14,00\n\x1bF"
+        + b"\n\x1ba\x01Obrigado pela visita!\n"
+    )
     if qr:
         job += qr_command(b"https://example.com/emulador-escbematech")
     return job + b"\n\n\n\x1bw"

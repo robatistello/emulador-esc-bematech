@@ -1,4 +1,5 @@
 """Ícone da bandeja via API Win32, sem dependências adicionais."""
+
 import atexit
 import ctypes
 import os
@@ -12,38 +13,66 @@ CLASS_PREFIX = "EscBematechTray_"
 OPEN_HISTORY, EXIT = 1, 2
 WM_COMMAND, WM_CLOSE, WM_DESTROY = 0x111, 0x10, 2
 WM_TRAY = 0x8001
-WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_CONTEXTMENU = 0x203, 0x205, 0x7b
+WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_CONTEXTMENU = 0x203, 0x205, 0x7B
 NIM_ADD, NIM_DELETE = 0, 2
 NIF_MESSAGE, NIF_ICON, NIF_TIP = 1, 2, 4
 MF_SEPARATOR, TPM_RIGHTBUTTON, TPM_RETURNCMD = 0x800, 0x2, 0x100
 IMAGE_ICON, LR_LOADFROMFILE, MB_ICONERROR = 1, 0x10, 0x10
 SM_CXSMICON = 49
 DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
-ATTACH_PARENT_PROCESS, TH32CS_SNAPPROCESS = 0xffffffff, 2
+ATTACH_PARENT_PROCESS, TH32CS_SNAPPROCESS = 0xFFFFFFFF, 2
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
 
 
 class WNDCLASS(ctypes.Structure):
-    _fields_ = [("style", w.UINT), ("lpfnWndProc", WNDPROC), ("cbClsExtra", ctypes.c_int),
-                ("cbWndExtra", ctypes.c_int), ("hInstance", w.HINSTANCE), ("hIcon", w.HANDLE),
-                ("hCursor", w.HANDLE), ("hbrBackground", w.HANDLE),
-                ("lpszMenuName", w.LPCWSTR), ("lpszClassName", w.LPCWSTR)]
+    _fields_ = [
+        ("style", w.UINT),
+        ("lpfnWndProc", WNDPROC),
+        ("cbClsExtra", ctypes.c_int),
+        ("cbWndExtra", ctypes.c_int),
+        ("hInstance", w.HINSTANCE),
+        ("hIcon", w.HANDLE),
+        ("hCursor", w.HANDLE),
+        ("hbrBackground", w.HANDLE),
+        ("lpszMenuName", w.LPCWSTR),
+        ("lpszClassName", w.LPCWSTR),
+    ]
 
 
 class NOTIFYICONDATA(ctypes.Structure):
-    _fields_ = [("cbSize", w.DWORD), ("hWnd", w.HWND), ("uID", w.UINT), ("uFlags", w.UINT),
-                ("uCallbackMessage", w.UINT), ("hIcon", w.HANDLE), ("szTip", w.WCHAR * 128),
-                ("dwState", w.DWORD), ("dwStateMask", w.DWORD), ("szInfo", w.WCHAR * 256),
-                ("uTimeoutOrVersion", w.UINT), ("szInfoTitle", w.WCHAR * 64),
-                ("dwInfoFlags", w.DWORD), ("guidItem", ctypes.c_byte * 16), ("hBalloonIcon", w.HANDLE)]
+    _fields_ = [
+        ("cbSize", w.DWORD),
+        ("hWnd", w.HWND),
+        ("uID", w.UINT),
+        ("uFlags", w.UINT),
+        ("uCallbackMessage", w.UINT),
+        ("hIcon", w.HANDLE),
+        ("szTip", w.WCHAR * 128),
+        ("dwState", w.DWORD),
+        ("dwStateMask", w.DWORD),
+        ("szInfo", w.WCHAR * 256),
+        ("uTimeoutOrVersion", w.UINT),
+        ("szInfoTitle", w.WCHAR * 64),
+        ("dwInfoFlags", w.DWORD),
+        ("guidItem", ctypes.c_byte * 16),
+        ("hBalloonIcon", w.HANDLE),
+    ]
 
 
 class PROCESSENTRY32(ctypes.Structure):
-    _fields_ = [("dwSize", w.DWORD), ("cntUsage", w.DWORD), ("th32ProcessID", w.DWORD),
-                ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", w.DWORD),
-                ("cntThreads", w.DWORD), ("th32ParentProcessID", w.DWORD), ("pcPriClassBase", w.LONG),
-                ("dwFlags", w.DWORD), ("szExeFile", w.WCHAR * 260)]
+    _fields_ = [
+        ("dwSize", w.DWORD),
+        ("cntUsage", w.DWORD),
+        ("th32ProcessID", w.DWORD),
+        ("th32DefaultHeapID", ctypes.c_size_t),
+        ("th32ModuleID", w.DWORD),
+        ("cntThreads", w.DWORD),
+        ("th32ParentProcessID", w.DWORD),
+        ("pcPriClassBase", w.LONG),
+        ("dwFlags", w.DWORD),
+        ("szExeFile", w.WCHAR * 260),
+    ]
 
 
 def api(library, name, result, *arguments):
@@ -58,9 +87,23 @@ kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 GetModuleHandle = api(kernel32, "GetModuleHandleW", w.HINSTANCE, w.LPCWSTR)
 RegisterClass = api(user32, "RegisterClassW", w.ATOM, ctypes.POINTER(WNDCLASS))
 UnregisterClass = api(user32, "UnregisterClassW", w.BOOL, w.LPCWSTR, w.HINSTANCE)
-CreateWindow = api(user32, "CreateWindowExW", w.HWND, w.DWORD, w.LPCWSTR, w.LPCWSTR,
-                   w.DWORD, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                   w.HWND, w.HANDLE, w.HINSTANCE, w.LPVOID)
+CreateWindow = api(
+    user32,
+    "CreateWindowExW",
+    w.HWND,
+    w.DWORD,
+    w.LPCWSTR,
+    w.LPCWSTR,
+    w.DWORD,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    w.HWND,
+    w.HANDLE,
+    w.HINSTANCE,
+    w.LPVOID,
+)
 DefWindowProc = api(user32, "DefWindowProcW", ctypes.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
 DestroyWindow = api(user32, "DestroyWindow", w.BOOL, w.HWND)
 PostQuitMessage = api(user32, "PostQuitMessage", None, ctypes.c_int)
@@ -68,14 +111,23 @@ GetMessage = api(user32, "GetMessageW", ctypes.c_int, ctypes.POINTER(w.MSG), w.H
 TranslateMessage = api(user32, "TranslateMessage", w.BOOL, ctypes.POINTER(w.MSG))
 DispatchMessage = api(user32, "DispatchMessageW", ctypes.c_ssize_t, ctypes.POINTER(w.MSG))
 NotifyIcon = api(shell32, "Shell_NotifyIconW", w.BOOL, w.DWORD, ctypes.POINTER(NOTIFYICONDATA))
-LoadImage = api(user32, "LoadImageW", w.HANDLE, w.HINSTANCE, w.LPCWSTR, w.UINT,
-                ctypes.c_int, ctypes.c_int, w.UINT)
+LoadImage = api(user32, "LoadImageW", w.HANDLE, w.HINSTANCE, w.LPCWSTR, w.UINT, ctypes.c_int, ctypes.c_int, w.UINT)
 DestroyIcon = api(user32, "DestroyIcon", w.BOOL, w.HANDLE)
 CreatePopupMenu = api(user32, "CreatePopupMenu", w.HANDLE)
 AppendMenu = api(user32, "AppendMenuW", w.BOOL, w.HANDLE, w.UINT, ctypes.c_size_t, w.LPCWSTR)
 SetMenuDefaultItem = api(user32, "SetMenuDefaultItem", w.BOOL, w.HANDLE, w.UINT, w.UINT)
-TrackPopupMenu = api(user32, "TrackPopupMenu", w.UINT, w.HANDLE, w.UINT, ctypes.c_int,
-                     ctypes.c_int, ctypes.c_int, w.HWND, ctypes.POINTER(w.RECT))
+TrackPopupMenu = api(
+    user32,
+    "TrackPopupMenu",
+    w.UINT,
+    w.HANDLE,
+    w.UINT,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    w.HWND,
+    ctypes.POINTER(w.RECT),
+)
 DestroyMenu = api(user32, "DestroyMenu", w.BOOL, w.HANDLE)
 GetCursorPos = api(user32, "GetCursorPos", w.BOOL, ctypes.POINTER(w.POINT))
 SetForegroundWindow = api(user32, "SetForegroundWindow", w.BOOL, w.HWND)
@@ -121,8 +173,7 @@ def ensure_console(own_window=False):
         return
     # No .exe de arquivo único, o pai é o lançador do PyInstaller, que não tem
     # console; o terminal que executou o programa é o avô.
-    attached = not own_window and (AttachConsole(ATTACH_PARENT_PROCESS)
-                                   or AttachConsole(parent_pid(os.getppid())))
+    attached = not own_window and (AttachConsole(ATTACH_PARENT_PROCESS) or AttachConsole(parent_pid(os.getppid())))
     if not attached and not AllocConsole():
         raise ctypes.WinError(ctypes.get_last_error())
     # O lançador ignora Ctrl+C e o processo do Python herda isso; sem religar,
@@ -153,8 +204,14 @@ def run_tray(url, port=None, open_browser=None):
     window, registered, visible = None, False, False
     taskbar_created = RegisterWindowMessage("TaskbarCreated")
     tip = f"{TITLE} · porta {port}" if port else TITLE
-    data = NOTIFYICONDATA(cbSize=ctypes.sizeof(NOTIFYICONDATA), uID=1, uFlags=NIF_MESSAGE | NIF_ICON | NIF_TIP,
-                          uCallbackMessage=WM_TRAY, hIcon=icon, szTip=tip)
+    data = NOTIFYICONDATA(
+        cbSize=ctypes.sizeof(NOTIFYICONDATA),
+        uID=1,
+        uFlags=NIF_MESSAGE | NIF_ICON | NIF_TIP,
+        uCallbackMessage=WM_TRAY,
+        hIcon=icon,
+        szTip=tip,
+    )
     callback_errors = []
 
     def command(hwnd, selected):
@@ -192,7 +249,7 @@ def run_tray(url, port=None, open_browser=None):
                     popup(hwnd)
                 return 0
             if message == WM_COMMAND:
-                command(hwnd, wp & 0xffff)
+                command(hwnd, wp & 0xFFFF)
                 return 0
             if message == WM_CLOSE:
                 DestroyWindow(hwnd)

@@ -99,9 +99,11 @@ class EmulatorTests(unittest.TestCase):
             self.assertEqual(len(printed["warnings"]), 1)
 
     def test_non_rendered_binary_blocks_and_physical_commands(self):
-        job = (b"\x1b(A\x04\x00\x01\x02\x01\x00\x1bv\x00\x1b\x80\x01"
-               b"\x1b*\x21\x01\x00\x1b\x00\x0a\x1cp\x01\x00"
-               b"\x1dk\x04ABC\x00\x1dk\x49\x03\x1b\x00\x0aTexto\n")
+        job = (
+            b"\x1b(A\x04\x00\x01\x02\x01\x00\x1bv\x00\x1b\x80\x01"
+            b"\x1b*\x21\x01\x00\x1b\x00\x0a\x1cp\x01\x00"
+            b"\x1dk\x04ABC\x00\x1dk\x49\x03\x1b\x00\x0aTexto\n"
+        )
         printed = self.parse(job)[0]
         self.assertEqual(printed["lines"][0]["spans"][0]["text"], "Texto")
         self.assertEqual(len(printed["warnings"]), 3)
@@ -243,15 +245,22 @@ class EmulatorTests(unittest.TestCase):
                         self.assertEqual((unchanged.exception.code, unchanged.exception.read()), (304, b""))
                         unchanged.exception.close()
                         with self.assertRaises(HTTPError) as denied:
-                            urlopen(Request(url + "/api/jobs", method="DELETE", headers={"Origin": "https://example.com"}))
+                            urlopen(
+                                Request(url + "/api/jobs", method="DELETE", headers={"Origin": "https://example.com"})
+                            )
                         self.assertEqual(denied.exception.code, 403)
                         denied.exception.close()
                         # Página com DNS rebinding: Origin e Host coincidem, mas o nome não é IP.
                         rebound = f"http://evil.example:{web.server_port}"
                         for method in ("GET", "DELETE"):
                             with self.subTest(method=method), self.assertRaises(HTTPError) as denied:
-                                urlopen(Request(url + "/api/jobs", method=method,
-                                                headers={"Host": rebound[7:], "Origin": rebound}))
+                                urlopen(
+                                    Request(
+                                        url + "/api/jobs",
+                                        method=method,
+                                        headers={"Host": rebound[7:], "Origin": rebound},
+                                    )
+                                )
                             self.assertEqual(denied.exception.code, 403)
                             denied.exception.close()
                         with urlopen(Request(url + "/api/jobs", headers={"Host": f"localhost:{web.server_port}"})) as r:

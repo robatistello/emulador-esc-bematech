@@ -1,4 +1,5 @@
 """Abre o executável compilado, envia a impressão de exemplo e confere o histórico."""
+
 import argparse
 import json
 import re
@@ -62,9 +63,12 @@ def main():
     port, web_port = free_port(), free_port()
     url = f"http://127.0.0.1:{web_port}"
     with tempfile.TemporaryDirectory() as folder:
-        process = subprocess.Popen([executable, "--console", "--port", str(port), "--web-port", str(web_port),
-                                    "--db", str(Path(folder) / "history.sqlite3")],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        arguments = ["--console", "--port", str(port), "--web-port", str(web_port)]
+        process = subprocess.Popen(
+            [executable, *arguments, "--db", str(Path(folder) / "history.sqlite3")],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         try:
             wait_for(lambda: fetch(url + "/"), 60, "O histórico não respondeu.")
             for path in ("/style.css", "/app.js", "/paper.js", "/qrcode.js"):

@@ -1,4 +1,5 @@
 """Servidor TCP EscBematech e visualizador HTTP com histórico SQLite."""
+
 import argparse
 import errno
 import ipaddress
@@ -24,16 +25,21 @@ DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", Fals
 VERSION = "1.1.0"
 SERVER_NAME = "EmuladorEscBematech"
 IDLE_SECONDS = 60
-STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
-          "/style.css": ("style.css", "text/css; charset=utf-8"),
-          "/app.js": ("app.js", "application/javascript; charset=utf-8"),
-          "/paper.js": ("paper.js", "application/javascript; charset=utf-8"),
-          "/qrcode.js": ("qrcode.js", "application/javascript; charset=utf-8")}
+STATIC = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/style.css": ("style.css", "text/css; charset=utf-8"),
+    "/app.js": ("app.js", "application/javascript; charset=utf-8"),
+    "/paper.js": ("paper.js", "application/javascript; charset=utf-8"),
+    "/qrcode.js": ("qrcode.js", "application/javascript; charset=utf-8"),
+}
 
 
 def job_events(job):
-    return [dict(event, description=f"Abertura da gaveta {event['drawer']} · pulso de {event['pulse_ms']} ms")
-            for event in job["events"] if event["type"] == "drawer"]
+    return [
+        dict(event, description=f"Abertura da gaveta {event['drawer']} · pulso de {event['pulse_ms']} ms")
+        for event in job["events"]
+        if event["type"] == "drawer"
+    ]
 
 
 def job_summary(job):
@@ -49,8 +55,10 @@ class History:
         path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(self.path)) as db, db:
             # O resumo em colunas evita decodificar todos os payloads a cada atualização da lista.
-            db.execute("CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY, payload TEXT NOT NULL,"
-                       " created_at TEXT NOT NULL, reason TEXT NOT NULL, preview TEXT NOT NULL)")
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY, payload TEXT NOT NULL,"
+                " created_at TEXT NOT NULL, reason TEXT NOT NULL, preview TEXT NOT NULL)"
+            )
             # Com a tabela já criada, um banco somente leitura abre sem erro e só
             # falharia ao gravar a primeira impressão, depois que ela foi recebida.
             # Um comando de escrita que não afeta linhas já revela isso.
@@ -58,8 +66,10 @@ class History:
 
     def save(self, job):
         with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute("INSERT INTO jobs(payload, created_at, reason, preview) VALUES (?, ?, ?, ?)",
-                       (json.dumps(job), *job_summary(job)))
+            db.execute(
+                "INSERT INTO jobs(payload, created_at, reason, preview) VALUES (?, ?, ?, ?)",
+                (json.dumps(job), *job_summary(job)),
+            )
 
     def clear(self):
         with closing(sqlite3.connect(self.path)) as db, db:
@@ -75,8 +85,10 @@ class History:
     def list(self):
         with closing(sqlite3.connect(self.path)) as db:
             rows = db.execute("SELECT id, created_at, reason, preview FROM jobs ORDER BY id DESC").fetchall()
-        return [dict(id=job_id, created_at=created_at, reason=reason, preview=preview)
-                for job_id, created_at, reason, preview in rows]
+        return [
+            dict(id=job_id, created_at=created_at, reason=reason, preview=preview)
+            for job_id, created_at, reason, preview in rows
+        ]
 
     def get(self, job_id):
         with closing(sqlite3.connect(self.path)) as db:
@@ -121,8 +133,7 @@ class PrinterHandler(socketserver.BaseRequestHandler):
 
 class PortInUseError(OSError):
     def __init__(self, port):
-        super().__init__(f"A porta {port} já está em uso por outro programa. "
-                         "Escolha outra com --port ou --web-port.")
+        super().__init__(f"A porta {port} já está em uso por outro programa. Escolha outra com --port ou --web-port.")
 
 
 class ExclusivePortMixin:
@@ -258,6 +269,7 @@ def web_handler(history):
 
         def log_message(self, *_):
             pass
+
     return Handler
 
 
@@ -303,6 +315,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if sys.stderr is None and sys.platform == "win32":
             from tray import show_error
+
             show_error(f"{message}\n\nUse --help para ver as opções.")
             raise SystemExit(2)
         super().error(message)
@@ -310,22 +323,34 @@ class ArgumentParser(argparse.ArgumentParser):
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
-    if sys.platform == "win32" and sys.stdout is None and any(
-            flag in argv for flag in ("--console", "--licenses", "--version", "--help", "-h")):
+    if (
+        sys.platform == "win32"
+        and sys.stdout is None
+        and any(flag in argv for flag in ("--console", "--licenses", "--version", "--help", "-h"))
+    ):
         from tray import ensure_console
+
         # O terminal não espera um programa de janela: o emulador ficaria rodando
         # escondido e sem receber Ctrl+C. Ele ganha uma janela própria.
         ensure_console(own_window="--console" in argv)
     args = ArgumentParser(description="Emulador EscBematech com histórico persistente", add_help=False)
     args.add_argument("-h", "--help", action="help", help="Mostra esta ajuda e sai")
-    args.add_argument("--host", default="127.0.0.1",
-                      help="Endereço de escuta; 0.0.0.0 aceita outros computadores (padrão: 127.0.0.1)")
+    args.add_argument(
+        "--host", default="127.0.0.1", help="Endereço de escuta; 0.0.0.0 aceita outros computadores (padrão: 127.0.0.1)"
+    )
     args.add_argument("--port", type=port_number, default=9100, help="Porta da impressora (padrão: 9100)")
-    args.add_argument("--web-port", type=port_number, default=9101, help="Porta do histórico no navegador (padrão: 9101)")
-    args.add_argument("--db", type=Path, default=DATA_ROOT / "data" / "history.sqlite3",
-                      help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)")
-    args.add_argument("--version", action="version", version=f"Emulador EscBematech {VERSION}",
-                      help="Mostra a versão e sai")
+    args.add_argument(
+        "--web-port", type=port_number, default=9101, help="Porta do histórico no navegador (padrão: 9101)"
+    )
+    args.add_argument(
+        "--db",
+        type=Path,
+        default=DATA_ROOT / "data" / "history.sqlite3",
+        help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)",
+    )
+    args.add_argument(
+        "--version", action="version", version=f"Emulador EscBematech {VERSION}", help="Mostra a versão e sai"
+    )
     args.add_argument("--licenses", action="store_true", help="Exibe licenças das bibliotecas incluídas")
     mode = args.add_mutually_exclusive_group()
     mode.add_argument("--tray", dest="tray", action="store_true", help="Executa na bandeja do Windows")
@@ -339,6 +364,7 @@ def main(argv=None):
     def fail(message):
         if config.tray and sys.platform == "win32":
             from tray import show_error
+
             show_error(message)
             return 1
         args.error(message)
@@ -351,6 +377,7 @@ def main(argv=None):
             url = f"http://{browser_host}:{web.server_port}"
             if config.tray:
                 from tray import run_tray
+
                 run_tray(url, port=tcp.server_address[1])
             else:
                 print(f"Impressora: {config.host}:{tcp.server_address[1]}")
@@ -361,7 +388,6 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     except PortInUseError as error:
-        # Abrir o programa de novo só mostra o histórico da instância em execução.
         url = f"http://{browser_host}:{config.web_port}"
         if not running_emulator(url):
             return fail(str(error))
@@ -370,8 +396,9 @@ def main(argv=None):
         else:
             print(f"O emulador já está em execução. Histórico: {url}")
     except sqlite3.Error as error:
-        return fail(f"Não foi possível usar o histórico em {config.db.resolve()}: {error}. "
-                    "Escolha outro arquivo com --db.")
+        return fail(
+            f"Não foi possível usar o histórico em {config.db.resolve()}: {error}. Escolha outro arquivo com --db."
+        )
     except (OSError, RuntimeError) as error:
         return fail(str(error))
     return 0

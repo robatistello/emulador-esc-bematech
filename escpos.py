@@ -1,4 +1,5 @@
 """Subconjunto do protocolo EscBematech, com pacotes TCP fragmentados."""
+
 import base64
 import re
 from datetime import datetime, timezone
@@ -31,14 +32,30 @@ class Parser:
             return
         if self.spans or self.text:
             self.newline()
-        self.lines.append(dict(type="qr", align=self.align, spans=[], module_size=module or 4,
-                               error_level="LMQH"[error], data_base64=base64.b64encode(data).decode("ascii")))
+        self.lines.append(
+            dict(
+                type="qr",
+                align=self.align,
+                spans=[],
+                module_size=module or 4,
+                error_level="LMQH"[error],
+                data_base64=base64.b64encode(data).decode("ascii"),
+            )
+        )
 
     def flush_text(self):
         if self.text:
-            self.spans.append(dict(text=self.text.decode(self.encoding, errors="replace"),
-                                   bold=self.bold, italic=self.italic, underline=self.underline,
-                                   width=self.width, height=self.height, font=self.font))
+            self.spans.append(
+                dict(
+                    text=self.text.decode(self.encoding, errors="replace"),
+                    bold=self.bold,
+                    italic=self.italic,
+                    underline=self.underline,
+                    width=self.width,
+                    height=self.height,
+                    font=self.font,
+                )
+            )
             self.text.clear()
 
     def newline(self):
@@ -48,7 +65,8 @@ class Parser:
 
     def has_content(self):
         return bool(self.events or self.warnings) or any(
-            line.get("type") == "qr" or any(span["text"].strip() for span in line["spans"]) for line in self.lines)
+            line.get("type") == "qr" or any(span["text"].strip() for span in line["spans"]) for line in self.lines
+        )
 
     def finish(self, reason="disconnect"):
         self.flush_text()
@@ -57,9 +75,17 @@ class Parser:
         # Sistemas costumam mandar inicialização ou avanço de papel logo depois do
         # corte; sem texto, QR, gaveta ou aviso, isso não é uma nova impressão.
         if self.has_content():
-            self.save(dict(protocol="bematech", created_at=datetime.now(timezone.utc).isoformat(),
-                           reason=reason, lines=self.lines, events=self.events, warnings=sorted(self.warnings),
-                           raw_base64=base64.b64encode(self.raw).decode("ascii")))
+            self.save(
+                dict(
+                    protocol="bematech",
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                    reason=reason,
+                    lines=self.lines,
+                    events=self.events,
+                    warnings=sorted(self.warnings),
+                    raw_base64=base64.b64encode(self.raw).decode("ascii"),
+                )
+            )
         self.raw.clear()
         self.lines, self.spans = [], []
         self.events = []
@@ -68,23 +94,23 @@ class Parser:
     def packet_size(self):
         """None significa que ainda faltam bytes; blocos binários são atômicos."""
         p = self.pending
-        if p[0] not in (0x1b, 0x1d, 0x1c, 0x10):
+        if p[0] not in (0x1B, 0x1D, 0x1C, 0x10):
             return 1
         if len(p) < 2:
             return None
         prefix, cmd = p[:2]
-        if prefix == 0x1b:
+        if prefix == 0x1B:
             if cmd == 0x28:  # ESC ( A: beep, comprimento little endian.
                 return None if len(p) < 5 else 5 + int.from_bytes(p[3:5], "little")
-            if cmd == 0x2a:  # ESC *: imagem em colunas.
+            if cmd == 0x2A:  # ESC *: imagem em colunas.
                 if len(p) < 5:
                     return None
                 return 5 + int.from_bytes(p[3:5], "little") * (3 if p[2] in (32, 33) else 1)
-            return 3 if cmd in (0x21, 0x2d, 0x33, 0x57, 0x61, 0x64, 0x74, 0x76, 0x80) else 2
-        if prefix == 0x1d:
-            if cmd in (0x0a, 0x0d):
+            return 3 if cmd in (0x21, 0x2D, 0x33, 0x57, 0x61, 0x64, 0x74, 0x76, 0x80) else 2
+        if prefix == 0x1D:
+            if cmd in (0x0A, 0x0D):
                 return 1  # GS solto: preservar a quebra seguinte.
-            if cmd == 0x6b:
+            if cmd == 0x6B:
                 if len(p) < 3:
                     return None
                 if p[2] == 0x51:  # QR nativo: GS k Q n1 n2 n3 n4 n5 n6 dados.
@@ -95,19 +121,18 @@ class Parser:
                     except ValueError:
                         return None
                 return None if len(p) < 4 else 4 + p[3]
-            return {0xf9: 4, 0xf8: 3, 0x48: 3, 0x68: 3, 0x77: 3, 0x66: 3}.get(cmd, 2)
-        if prefix == 0x1c:
+            return {0xF9: 4, 0xF8: 3, 0x48: 3, 0x68: 3, 0x77: 3, 0x66: 3}.get(cmd, 2)
+        if prefix == 0x1C:
             return 4 if cmd == 0x70 else 2
         return 3
 
     def feed(self, data):
         self.pending.extend(data)
         while self.pending:
-            # Texto comum segue em bloco; só bytes de controle passam pelo enquadramento.
             text = TEXT.match(self.pending)
             if text:
-                run = self.pending[:text.end()]
-                del self.pending[:text.end()]
+                run = self.pending[: text.end()]
+                del self.pending[: text.end()]
                 self.raw.extend(run)
                 self.text.extend(run)
                 continue
@@ -121,13 +146,13 @@ class Parser:
             if packet[:2] in (b"\x10\x04", b"\x1d\xf8"):
                 continue
             self.raw.extend(packet)
-            if b == 0x0a:
+            if b == 0x0A:
                 self.newline()
-            elif b == 0x0d:
+            elif b == 0x0D:
                 pass
             elif b == 0x09:
                 self.text.extend(b"    ")
-            elif b == 0x1b:
+            elif b == 0x1B:
                 self.flush_text()
                 cmd = packet[1]
                 n = packet[2] if len(packet) > 2 else 0
@@ -141,8 +166,8 @@ class Parser:
                     self.bold = cmd == 0x45
                 elif cmd in (0x34, 0x35):
                     self.italic = cmd == 0x34
-                elif cmd in (0x0f, 0x48):
-                    self.font = "B" if cmd == 0x0f else "A"
+                elif cmd in (0x0F, 0x48):
+                    self.font = "B" if cmd == 0x0F else "A"
                 elif cmd == 0x57:
                     self.width = 2 if n else 1
                 elif cmd == 0x64:
@@ -153,9 +178,9 @@ class Parser:
                     self.bold, self.underline = bool(n & 8), bool(n & 128)
                     self.width, self.height = (2 if n & 32 else 1), (2 if n & 16 else 1)
                     self.font = "B" if n & 1 else "A"
-                elif cmd == 0x2d:
+                elif cmd == 0x2D:
                     self.underline = bool(n)
-                elif cmd in (0x77, 0x6d):
+                elif cmd in (0x77, 0x6D):
                     self.finish("cut")
                 elif cmd == 0x74:
                     self.encoding = {2: "cp850", 3: "cp437", 4: "cp860", 8: "utf-8"}.get(n, "cp850")
@@ -165,11 +190,11 @@ class Parser:
                     self.events.append(dict(type="drawer", drawer=1 if cmd == 0x76 else 2, pulse_ms=n))
                 elif cmd == 0x28 and packet[2] == 0x41:
                     pass  # Beep: sem dispositivo físico.
-                elif cmd == 0x2a:
+                elif cmd == 0x2A:
                     self.warnings.add("Imagem ESC * não renderizada.")
                 else:
                     self.warnings.add(f"Comando ESC {cmd:02X} não suportado.")
-            elif b == 0x1d:
+            elif b == 0x1D:
                 if len(packet) == 1:
                     continue
                 self.flush_text()
@@ -177,13 +202,15 @@ class Parser:
                     self.print_qr(packet)
                 elif packet == b"\x1d\xf9\x20\x00" or packet[1] in (0x48, 0x68, 0x77, 0x66):
                     pass  # Seleção EscBema e parâmetros de código de barras.
-                elif packet[1] == 0x6b:
+                elif packet[1] == 0x6B:
                     self.warnings.add("Código de barras não renderizado.")
                 else:
                     self.warnings.add(f"Comando GS {packet[1]:02X} não suportado.")
-            elif b == 0x1c:
+            elif b == 0x1C:
                 self.flush_text()
-                self.warnings.add("Logo FS não renderizado." if packet[1] == 0x70 else f"Comando FS {packet[1]:02X} não suportado.")
+                self.warnings.add(
+                    "Logo FS não renderizado." if packet[1] == 0x70 else f"Comando FS {packet[1]:02X} não suportado."
+                )
             else:
                 self.warnings.add(f"Controle {b:02X} não suportado.")
 

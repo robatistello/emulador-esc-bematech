@@ -1,4 +1,5 @@
 """Atalho pelos fontes: duplo clique ou pythonw, sem janela de terminal."""
+
 import sys
 from server import main
 
