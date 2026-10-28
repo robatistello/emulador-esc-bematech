@@ -1,0 +1,50 @@
+name: Problema
+description: Algo não funciona como deveria, ou uma impressão aparece diferente do esperado.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar. Com os bytes originais da impressão dá para reproduzir o problema exatamente.
+
+  - type: input
+    id: version
+    attributes:
+      label: Versão do emulador
+      description: Aparece no rodapé do histórico e em `EmuladorEscBematech --version`.
+      placeholder: 1.2.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Como o emulador está rodando
+      options:
+        - Executável do Windows
+        - Executável do Linux
+        - Pelos fontes
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: O que aconteceu
+      description: O que você fez, o que apareceu e o que esperava. Se a impressão saiu diferente, um print do histórico ajuda.
+    validations:
+      required: true
+
+  - type: textarea
+    id: raw
+    attributes:
+      label: Bytes da impressão
+      description: |
+        No histórico, abra a impressão e clique em **Baixar comandos brutos**. O GitHub não aceita arquivos `.bin`:
+        compacte o arquivo em `.zip` e arraste o zip para cá. Confira antes se a impressão não tem dados pessoais.
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Outros detalhes
+      description: Sistema operacional, página de código configurada, avisos mostrados abaixo da impressão.

@@ -140,6 +140,10 @@ git push origin v1.2.0
 
 O workflow de release confere se a tag bate com `VERSION`, roda os testes, compila nos dois sistemas, roda o teste rápido em cada executável e só então publica a Release com o `EmuladorEscBematech-X.Y.Z-windows.zip` e o `EmuladorEscBematech-X.Y.Z-linux.tar.gz`.
 
+## Dependências do desenvolvimento
+
+O Dependabot (`.github/dependabot.yml`) abre um pull request por mês quando há versão nova das actions dos workflows ou do PyInstaller (`packaging/requirements-build.txt`). As versões do Ruff, do Prettier e do ESLint ficam escritas nos comandos do `tests.yml`, deste guia e do CLAUDE.md, e o Dependabot não as acompanha: ao atualizar uma delas, troque em todos esses lugares.
+
 ## Commits
 
 Mensagens em português, com prefixo convencional (`feat:`, `fix:`, `refactor:`, `style:`, `docs:`) e um corpo explicando o porquê da mudança.
