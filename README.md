@@ -60,6 +60,7 @@ Desabilite a leitura de status da impressora: o emulador consome essas consultas
 - **Aba em segundo plano:** o título mostra quantas impressões chegaram, como "(2) Emulador EscBematech", e o ícone ganha um ponto vermelho. Em abas esquecidas por vários minutos, o navegador espaça as consultas e o aviso pode levar até um minuto.
 - **Busca:** procura no número e nos primeiros 90 caracteres do texto; `#10` encontra só a impressão 10.
 - **Downloads:** cada impressão pode ser baixada como PNG, na resolução da impressora, ou com os bytes originais (`.bin`). O nome do arquivo leva o número, a data e a hora, como `impressao-12_2026-10-13_19-35-19.png`.
+- **Limite:** o histórico guarda as 1000 impressões mais recentes; a cada impressão nova além disso, a mais antiga é apagada. Com cupons comuns, o arquivo fica entre 2 e 10 MB. Para mudar o limite, use `--keep`.
 - **Limpar histórico:** apaga todas as impressões, após confirmação. Para backup, feche o emulador e copie o `data/history.sqlite3`.
 - **Tema:** segue o claro ou escuro do sistema; o botão de sol e lua no cabeçalho alterna entre eles.
 
@@ -75,6 +76,7 @@ As mesmas opções valem para o executável e para os fontes:
 | `--web-port 9103` | Porta do histórico (padrão 9101) |
 | `--host 0.0.0.0` | Aceita impressões de outros computadores da rede |
 | `--db caminho.sqlite3` | Arquivo do histórico |
+| `--keep 5000` | Quantas impressões guardar (padrão 1000); `0` guarda todas |
 | `--console` | No Windows, roda no terminal em vez da bandeja |
 | `--version`, `--licenses`, `--help` | Versão, licenças de terceiros e ajuda |
 

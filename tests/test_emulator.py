@@ -218,6 +218,21 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(len(restored.list()), 2)
         self.assertTrue(restored.get(2)["lines"][0]["spans"][0]["bold"])
 
+    def test_keeps_only_the_most_recent_jobs(self):
+        history = History(self.path, keep=2)
+
+        for text in (b"Um\n", b"Dois\n", b"Tres\n"):
+            history.save(parse(text)[0])
+
+        self.assertEqual([job["preview"] for job in history.list()], ["Tres", "Dois"])
+
+    def test_lower_limit_applies_on_open_and_zero_keeps_everything(self):
+        for text in (b"Um\n", b"Dois\n", b"Tres\n"):
+            self.history.save(parse(text)[0])
+
+        self.assertEqual(len(History(self.path, keep=0).list()), 3)
+        self.assertEqual([job["id"] for job in History(self.path, keep=1).list()], [3])
+
     def test_read_only_database_fails_on_open(self):
         os.chmod(self.path, stat.S_IREAD)
         self.addCleanup(os.chmod, self.path, stat.S_IREAD | stat.S_IWRITE)

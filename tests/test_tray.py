@@ -11,7 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.request import urlopen
 
-from emulator.server import running_servers
+from emulator.server import DEFAULT_KEEP, running_servers
 
 
 def wait_until(condition, seconds):
@@ -68,7 +68,9 @@ class TrayTests(unittest.TestCase):
 
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
-        config = SimpleNamespace(host="127.0.0.1", port=0, web_port=0, db=Path(folder.name) / "history.sqlite3")
+        config = SimpleNamespace(
+            host="127.0.0.1", port=0, web_port=0, db=Path(folder.name) / "history.sqlite3", keep=DEFAULT_KEEP
+        )
 
         def run_emulator():
             try:

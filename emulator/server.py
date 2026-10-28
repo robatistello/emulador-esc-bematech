@@ -39,6 +39,7 @@ IDLE_SECONDS = 60
 RECEIVE_TIMEOUT_SECONDS = 0.5
 MAX_CONNECTION_BYTES = 10 * 1024 * 1024
 PREVIEW_LENGTH = 90
+DEFAULT_KEEP = 1000
 
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -70,8 +71,9 @@ def job_summary(job):
 
 
 class History:
-    def __init__(self, path):
+    def __init__(self, path, keep=DEFAULT_KEEP):
         self.path = str(path)
+        self.keep = keep
         path.parent.mkdir(parents=True, exist_ok=True)
 
         with closing(sqlite3.connect(self.path)) as connection, connection:
@@ -85,6 +87,7 @@ class History:
             # falharia ao gravar a primeira impressão, depois que ela foi recebida.
             # Um comando de escrita que não afeta linhas já revela isso.
             connection.execute("DELETE FROM jobs WHERE 0")
+            self.prune(connection)
 
     def save(self, job):
         with closing(sqlite3.connect(self.path)) as connection, connection:
@@ -92,6 +95,17 @@ class History:
                 "INSERT INTO jobs(payload, created_at, reason, preview) VALUES (?, ?, ?, ?)",
                 (json.dumps(job), *job_summary(job)),
             )
+            self.prune(connection)
+
+    def prune(self, connection):
+        if not self.keep:
+            return
+
+        # O arquivo não encolhe, mas o SQLite reaproveita o espaço das impressões
+        # apagadas nas seguintes, e o tamanho se estabiliza no limite.
+        connection.execute(
+            "DELETE FROM jobs WHERE id < (SELECT id FROM jobs ORDER BY id DESC LIMIT 1 OFFSET ?)", (self.keep - 1,)
+        )
 
     def clear(self):
         with closing(sqlite3.connect(self.path)) as connection, connection:
@@ -360,7 +374,7 @@ def web_handler(history):
 
 @contextmanager
 def running_servers(config):
-    history = History(config.db)
+    history = History(config.db, config.keep)
 
     with PrinterServer((config.host, config.port), PrinterHandler) as tcp:
         tcp.history = history
@@ -399,6 +413,13 @@ def port_number(value):
     return port
 
 
+def job_limit(value):
+    if not value.isdigit():
+        raise argparse.ArgumentTypeError(f"limite inválido: {value} (use um número; 0 guarda todas as impressões)")
+
+    return int(value)
+
+
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if sys.stderr is None and sys.platform == "win32":
@@ -426,6 +447,12 @@ def build_argument_parser():
         type=Path,
         default=DATA_ROOT / "data" / "history.sqlite3",
         help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)",
+    )
+    parser.add_argument(
+        "--keep",
+        type=job_limit,
+        default=DEFAULT_KEEP,
+        help=f"Quantas impressões guardar; as mais antigas são apagadas, e 0 guarda todas (padrão: {DEFAULT_KEEP})",
     )
     parser.add_argument(
         "--version", action="version", version=f"Emulador EscBematech {VERSION}", help="Mostra a versão e sai"

@@ -7,11 +7,13 @@ from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
-from emulator.server import VERSION, History, main, running_servers
+from emulator.server import DEFAULT_KEEP, VERSION, History, main, running_servers
 
 
 def server_config(folder, port=0, web_port=0):
-    return SimpleNamespace(host="127.0.0.1", port=port, web_port=web_port, db=Path(folder) / "history.sqlite3")
+    return SimpleNamespace(
+        host="127.0.0.1", port=port, web_port=web_port, db=Path(folder) / "history.sqlite3", keep=DEFAULT_KEEP
+    )
 
 
 class LifecycleTests(unittest.TestCase):
@@ -118,6 +120,7 @@ class LifecycleTests(unittest.TestCase):
         cases = (
             (["--port", "99999"], "porta inválida: 99999"),
             (["--web-port", "abc"], "porta inválida: abc"),
+            (["--keep", "-1"], "limite inválido: -1"),
             (["--port", "0", "--web-port", "0", "--db", self.folder], "Não foi possível usar o histórico"),
         )
 

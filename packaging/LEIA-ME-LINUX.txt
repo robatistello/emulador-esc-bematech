@@ -123,6 +123,9 @@ O HISTÓRICO
   depois de fechar e abrir de novo. Se o programa estiver numa pasta
   sem permissão de escrita, indique outro arquivo com --db, por
   exemplo: ./EmuladorEscBematech --db ~/emulador/history.sqlite3
+- Guarda as 1000 impressões mais recentes; as mais antigas são
+  apagadas sozinhas. Para guardar outra quantidade, use --keep (veja
+  abaixo).
 - Se a aba do histórico estiver em segundo plano, o título dela mostra
   quantas impressões novas chegaram, por exemplo "(2) Emulador
   EscBematech", e o ícone da aba ganha um ponto vermelho.
@@ -151,6 +154,10 @@ OUTRAS PORTAS OU OUTRO COMPUTADOR
       IP, por exemplo http://192.168.0.10:9101. Pode ser preciso
       liberar as portas no firewall. O histórico não tem senha: use
       só em rede confiável.
+
+  ./EmuladorEscBematech --keep 5000
+      Guarda as 5000 impressões mais recentes, em vez de 1000.
+      Com --keep 0, guarda todas.
 
 Portas abaixo de 1024 exigem permissão de administrador; as portas
 padrão (9100 e 9101) não precisam.
