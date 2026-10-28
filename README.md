@@ -1,6 +1,6 @@
 # Emulador EscBematech
 
-Impressora térmica virtual para testar sistemas que imprimem no padrão **EscBematech**. O emulador recebe as impressões pela rede (TCP/RAW, porta 9100) e mostra cada uma num histórico no navegador, desenhada como sairia no papel de 48 colunas.
+Impressora térmica virtual para testar sistemas que imprimem no padrão **EscBematech**. O emulador recebe as impressões pela rede (TCP/RAW, porta 9100) e mostra cada uma num histórico no navegador, desenhada num papel de 48 colunas.
 
 Funciona com qualquer sistema que imprima nesse padrão; no ACBr, corresponde ao modelo `ppEscBematech`.
 
@@ -11,7 +11,7 @@ Funciona com qualquer sistema que imprima nesse padrão; no ACBr, corresponde ao
 
 ## Recursos
 
-- **Impressão fiel ao papel:** 48 colunas na fonte normal e 64 na condensada, negrito, itálico, sublinhado, largura e altura dupla, alinhamento e QR code nativo.
+- **Prévia do papel:** cada impressão é desenhada em 48 colunas na fonte normal e 64 na condensada, com negrito, itálico, sublinhado, largura e altura dupla, alinhamento e QR code nativo. Serve para conferir o layout durante o desenvolvimento, mas é uma aproximação: fontes e espaçamentos podem diferir em detalhes, e imagens, logotipos e códigos de barras aparecem só como aviso.
 - **Histórico persistente:** as impressões ficam salvas entre reinicializações, com busca, download como imagem PNG ou com os bytes originais.
 - **Avisos de nova impressão:** com a aba em segundo plano, o título conta as impressões novas e o ícone ganha um ponto; a página pode mostrar cada impressão nova assim que chega.
 - **Gaveta registrada:** aberturas de gaveta aparecem no histórico com o número da gaveta e a duração do pulso.
