@@ -7,10 +7,13 @@ on:
 
 jobs:
   tests:
+    name: Testes (${{ matrix.os }}, Python ${{ matrix.python }})
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
+        # A versão mínima prometida no README e a que vai dentro dos executáveis.
+        python: ["3.10", "3.14"]
     runs-on: ${{ matrix.os }}
     env:
       PYTHONUTF8: "1"
@@ -19,25 +22,31 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
+          python-version: ${{ matrix.python }}
+
+      - name: Testes Python
+        run: python -m unittest discover -s tests -v
+
+      - name: Testes do renderizador
+        run: node tests/test_paper.cjs
+
+  lint:
+    name: Formatação e análise
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
           python-version: "3.14"
 
-      - name: Testes
-        shell: pwsh
-        run: |
-          python -m unittest discover -s tests -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tests/test_paper.cjs
-
       - name: Formatação do Python
-        if: runner.os == 'Linux'
         run: |
           pip install ruff==0.17.3
           ruff format --check
 
       - name: Formatação da página
-        if: runner.os == 'Linux'
         run: npx --yes prettier@3.9.10 --check emulator/web tests/test_paper.cjs eslint.config.mjs
 
       - name: Análise do JavaScript
-        if: runner.os == 'Linux'
         run: npx --yes eslint@10.13.0 emulator/web tests/test_paper.cjs

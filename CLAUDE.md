@@ -33,7 +33,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 - `packaging/` — `build.ps1`, `build.sh`, `requirements-build.txt` e os LEIA-ME de cada pacote, que viram `LEIA-ME.txt` no zip e no tar.gz. `notices.py` monta o `THIRD-PARTY-NOTICES.txt` do executável (o da raiz mais as licenças do Python embutido, de `packaging/licenses` e, no Windows, do `LICENSE.txt` do próprio Python); veja "Licenças nos executáveis" no CONTRIBUTING.md.
 - `tools/send_demo.py` — impressão de exemplo, também usada pelos testes (`build_demo`, `qr_command`); `tools/smoke_test.py` — teste do executável compilado, rodado pelo release nos dois sistemas.
 - `tests/` — `test_emulator.py` (parser, histórico, servidores), `test_lifecycle.py` (linha de comando, portas, encerramento), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`).
-- `.github/workflows/` — `tests.yml` roda testes e formatação no Windows e no Linux a cada push e pull request; `release.yml` publica a Release a cada tag `v*`.
+- `.github/workflows/` — `tests.yml` roda os testes no Windows e no Linux, com o Python 3.10 (mínimo prometido) e o 3.14 (o dos executáveis), e a formatação e o ESLint uma vez, a cada push e pull request; `release.yml` publica a Release a cada tag `v*`.
 
 ## Convenções
 
