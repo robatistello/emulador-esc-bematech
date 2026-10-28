@@ -71,18 +71,24 @@ O código segue dois formatadores, com 120 colunas nos dois. O workflow de teste
 | Arquivos | Ferramenta | Configuração |
 |---|---|---|
 | Python | [Ruff](https://docs.astral.sh/ruff/) | `ruff.toml` |
-| HTML, CSS e JavaScript de `emulator/web` e `tests/test_paper.cjs` | [Prettier](https://prettier.io/) | `.prettierrc.json`; o `.prettierignore` deixa de fora o `qrcode.js`, que é de terceiros |
+| HTML, CSS e JavaScript de `emulator/web`, `tests/test_paper.cjs` e `eslint.config.mjs` | [Prettier](https://prettier.io/) | `.prettierrc.json`; o `.prettierignore` deixa de fora o `qrcode.js`, que é de terceiros |
 
 Depois de editar, formate:
 
 ```bash
 uvx ruff@0.17.3 format
-npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs
+npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs eslint.config.mjs
 ```
 
-Para só conferir, como o CI, troque por `uvx ruff@0.17.3 format --check` e `npx prettier@3.9.10 --check emulator/web tests/test_paper.cjs`. Sem o uv, o Ruff também instala pelo pip: `python -m pip install ruff==0.17.3` e depois `python -m ruff format`.
+Para só conferir, como o CI, troque `format` por `format --check` e `--write` por `--check`. Sem o uv, o Ruff também instala pelo pip: `python -m pip install ruff==0.17.3` e depois `python -m ruff format`.
 
-No VS Code, as extensões oficiais [Ruff](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) e [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) leem as mesmas configurações; com "Format On Save" ligado, cada arquivo é formatado ao salvar.
+Além da formatação, o JavaScript passa pelo [ESLint](https://eslint.org/), que aponta erros que o Prettier não vê, como variável não declarada ou não usada, `var` e comparação com `==`. As regras ficam em `eslint.config.mjs`, escolhidas uma a uma para o ESLint rodar pelo `npx`, sem `package.json`:
+
+```bash
+npx eslint@10.13.0 emulator/web tests/test_paper.cjs
+```
+
+No VS Code, as extensões oficiais [Ruff](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff), [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) e [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) leem as mesmas configurações; com "Format On Save" ligado, cada arquivo é formatado ao salvar. A extensão do ESLint precisa do pacote instalado; sem ele, use o comando acima.
 
 ## Build dos executáveis
 

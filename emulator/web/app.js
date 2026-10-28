@@ -213,7 +213,7 @@ async function refresh() {
         );
       }
     }
-  } catch (error) {
+  } catch {
     byId('status').textContent = 'Servidor indisponível. Tentando reconectar…';
   }
 

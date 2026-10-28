@@ -11,13 +11,14 @@ py tools/send_demo.py --qr                       # envia uma impressão de exemp
 py -m unittest discover -s tests -v              # testes Python
 node tests/test_paper.cjs                        # testes do renderizador e do QR
 uvx ruff@0.17.3 format                           # formata o Python
-npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs  # formata a página e o teste Node
+npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs eslint.config.mjs  # formata a página e o teste Node
+npx eslint@10.13.0 emulator/web tests/test_paper.cjs  # analisa o JavaScript
 .\packaging\build.ps1                            # gera outputs\windows\EmuladorEscBematech.exe
 ./packaging/build.sh                             # no Linux ou WSL: gera outputs/linux/EmuladorEscBematech
 py tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe  # abre o executável e confere uma impressão
 ```
 
-Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`) e os dois formatadores; o CI confere a formatação com `--check`.
+Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), os dois formatadores e o ESLint; o CI confere todos.
 
 ## Arquitetura
 
@@ -39,7 +40,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`) e 
 - **Sem dependências Python**: só a biblioteca padrão. O build instala apenas o PyInstaller.
 - **Banco**: o esquema é criado direto, sem migrações. Ao mudar a tabela, os bancos existentes podem ser apagados.
 - **Versão**: constante `VERSION` em `emulator/server.py`; não repita o número em outro arquivo.
-- **Público**: o emulador é genérico para sistemas que imprimem em EscBematech. Cite o ACBr só como exemplo de configuração ou referência dos comandos, nunca como o sistema-alvo, e não cite sistemas específicos que o usam.
+- **Escopo**: o emulador é genérico para sistemas que imprimem em EscBematech. O ACBr aparece só como exemplo de configuração e referência dos comandos, nunca como o sistema-alvo.
 - Idiomas, nomes, espaçamento, comentários, termos e commits: siga o "Padrão de escrita" do CONTRIBUTING.md.
 
 ## Cuidados

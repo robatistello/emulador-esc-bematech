@@ -36,4 +36,8 @@ jobs:
 
       - name: Formatação da página
         if: runner.os == 'Linux'
-        run: npx --yes prettier@3.9.10 --check emulator/web tests/test_paper.cjs
+        run: npx --yes prettier@3.9.10 --check emulator/web tests/test_paper.cjs eslint.config.mjs
+
+      - name: Análise do JavaScript
+        if: runner.os == 'Linux'
+        run: npx --yes eslint@10.13.0 emulator/web tests/test_paper.cjs
