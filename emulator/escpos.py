@@ -5,8 +5,74 @@ import re
 from datetime import datetime, timezone
 
 TEXT = re.compile(rb"[^\x00-\x1f]+")
-ESC, GS, FS, DLE = 0x1B, 0x1D, 0x1C, 0x10
+
+TAB = 0x09
+LF = 0x0A
+CR = 0x0D
+DLE = 0x10
+ESC = 0x1B
+FS = 0x1C
+GS = 0x1D
+
+# Segundo byte dos comandos ESC, com o mnemônico do manual.
+ESC_CONDENSED_ON = 0x0F  # ESC SI
+ESC_PRINT_MODE = 0x21  # ESC !
+ESC_BEEP = 0x28  # ESC ( A
+ESC_IMAGE = 0x2A  # ESC *
+ESC_UNDERLINE = 0x2D  # ESC -
+ESC_DEFAULT_SPACING = 0x32  # ESC 2
+ESC_LINE_SPACING = 0x33  # ESC 3
+ESC_ITALIC_ON = 0x34  # ESC 4
+ESC_ITALIC_OFF = 0x35  # ESC 5
+ESC_INITIALIZE = 0x40  # ESC @
+ESC_BOLD_ON = 0x45  # ESC E
+ESC_BOLD_OFF = 0x46  # ESC F
+ESC_CONDENSED_OFF = 0x48  # ESC H
+ESC_DOUBLE_WIDTH = 0x57  # ESC W
+ESC_ALIGN = 0x61  # ESC a
+ESC_DOUBLE_HEIGHT = 0x64  # ESC d
+ESC_PARTIAL_CUT = 0x6D  # ESC m
+ESC_CODE_PAGE = 0x74  # ESC t
+ESC_DRAWER_1 = 0x76  # ESC v
+ESC_FULL_CUT = 0x77  # ESC w
+ESC_DRAWER_2 = 0x80
+ESC_WITH_ARGUMENT = (
+    ESC_PRINT_MODE,
+    ESC_UNDERLINE,
+    ESC_LINE_SPACING,
+    ESC_DOUBLE_WIDTH,
+    ESC_ALIGN,
+    ESC_DOUBLE_HEIGHT,
+    ESC_CODE_PAGE,
+    ESC_DRAWER_1,
+    ESC_DRAWER_2,
+)
+
+# Bits do argumento de ESC !.
+PRINT_MODE_CONDENSED = 0x01
+PRINT_MODE_BOLD = 0x08
+PRINT_MODE_DOUBLE_HEIGHT = 0x10
+PRINT_MODE_DOUBLE_WIDTH = 0x20
+PRINT_MODE_UNDERLINE = 0x80
+
+# Segundo byte dos comandos GS.
+GS_BARCODE_HEIGHT = 0x68  # GS h
+GS_BARCODE_WIDTH = 0x77  # GS w
+GS_BARCODE_TEXT = 0x48  # GS H
+GS_BARCODE_FONT = 0x66  # GS f
+GS_BARCODE = 0x6B  # GS k
+GS_STATUS = 0xF8
+GS_SELECT_MODE = 0xF9
+GS_BARCODE_SETTINGS = (GS_BARCODE_HEIGHT, GS_BARCODE_WIDTH, GS_BARCODE_TEXT, GS_BARCODE_FONT)
+GS_COMMAND_SIZES = {GS_SELECT_MODE: 4, GS_STATUS: 3, **{command: 3 for command in GS_BARCODE_SETTINGS}}
+QR_SYMBOLOGY = 0x51  # GS k Q
+
+FS_LOGO = 0x70  # FS p
+
+SELECT_ESCBEMA = b"\x1d\xf9\x20\x00"
+STATUS_QUERIES = (bytes([DLE, 0x04]), bytes([GS, GS_STATUS]))
 CODE_PAGES = {2: "cp850", 3: "cp437", 4: "cp860", 8: "utf-8"}
+ALIGNMENTS = {0: "left", 1: "center", 2: "right"}
 
 
 class Parser:
@@ -122,32 +188,32 @@ class Parser:
         prefix, command = pending[:2]
 
         if prefix == ESC:
-            if command == 0x28:  # ESC ( A: beep, comprimento little endian.
+            if command == ESC_BEEP:  # Comprimento little endian nos bytes 3 e 4.
                 return None if len(pending) < 5 else 5 + int.from_bytes(pending[3:5], "little")
-            if command == 0x2A:  # ESC *: imagem em colunas.
+            if command == ESC_IMAGE:  # Colunas de 1 ou 3 bytes, conforme a densidade.
                 if len(pending) < 5:
                     return None
                 return 5 + int.from_bytes(pending[3:5], "little") * (3 if pending[2] in (32, 33) else 1)
-            return 3 if command in (0x21, 0x2D, 0x33, 0x57, 0x61, 0x64, 0x74, 0x76, 0x80) else 2
+            return 3 if command in ESC_WITH_ARGUMENT else 2
 
         if prefix == GS:
-            if command in (0x0A, 0x0D):
+            if command in (LF, CR):
                 return 1  # GS solto: preservar a quebra seguinte.
-            if command == 0x6B:
+            if command == GS_BARCODE:
                 if len(pending) < 3:
                     return None
-                if pending[2] == 0x51:  # QR nativo: GS k Q n1 n2 n3 n4 n5 n6 dados.
+                if pending[2] == QR_SYMBOLOGY:  # GS k Q n1 n2 n3 n4 n5 n6 dados.
                     return None if len(pending) < 9 else 9 + int.from_bytes(pending[7:9], "little")
-                if pending[2] <= 6:
+                if pending[2] <= 6:  # Simbologias antigas terminam em byte zero.
                     try:
                         return pending.index(0, 3) + 1
                     except ValueError:
                         return None
                 return None if len(pending) < 4 else 4 + pending[3]
-            return {0xF9: 4, 0xF8: 3, 0x48: 3, 0x68: 3, 0x77: 3, 0x66: 3}.get(command, 2)
+            return GS_COMMAND_SIZES.get(command, 2)
 
         if prefix == FS:
-            return 4 if command == 0x70 else 2
+            return 4 if command == FS_LOGO else 2
 
         return 3
 
@@ -171,7 +237,7 @@ class Parser:
             del self.pending[:size]
 
             # Consultas de status não constituem uma impressão.
-            if packet[:2] in (b"\x10\x04", b"\x1d\xf8"):
+            if packet[:2] in STATUS_QUERIES:
                 continue
 
             self.raw.extend(packet)
@@ -180,11 +246,11 @@ class Parser:
     def handle_packet(self, packet):
         control = packet[0]
 
-        if control == 0x0A:
+        if control == LF:
             self.newline()
-        elif control == 0x0D:
+        elif control == CR:
             pass
-        elif control == 0x09:
+        elif control == TAB:
             self.text.extend(b"    ")
         elif control == ESC:
             self.flush_text()
@@ -195,7 +261,7 @@ class Parser:
                 self.handle_gs(packet)
         elif control == FS:
             self.flush_text()
-            if packet[1] == 0x70:
+            if packet[1] == FS_LOGO:
                 self.warnings.add("Logo FS não renderizado.")
             else:
                 self.warnings.add(f"Comando FS {packet[1]:02X} não suportado.")
@@ -206,55 +272,59 @@ class Parser:
         command = packet[1]
         argument = packet[2] if len(packet) > 2 else 0
 
-        if command == 0x40:
+        if command == ESC_INITIALIZE:
             self.reset_style()
-        elif command == 0x32:
+        elif command == ESC_DEFAULT_SPACING:
             self.line_spacing = 30
-        elif command == 0x33:
+        elif command == ESC_LINE_SPACING:
             self.line_spacing = argument
-        elif command in (0x45, 0x46):
-            self.bold = command == 0x45
-        elif command in (0x34, 0x35):
-            self.italic = command == 0x34
-        elif command in (0x0F, 0x48):
-            self.font = "B" if command == 0x0F else "A"
-        elif command == 0x57:
+        elif command in (ESC_BOLD_ON, ESC_BOLD_OFF):
+            self.bold = command == ESC_BOLD_ON
+        elif command in (ESC_ITALIC_ON, ESC_ITALIC_OFF):
+            self.italic = command == ESC_ITALIC_ON
+        elif command in (ESC_CONDENSED_ON, ESC_CONDENSED_OFF):
+            self.font = "B" if command == ESC_CONDENSED_ON else "A"
+        elif command == ESC_DOUBLE_WIDTH:
             self.width = 2 if argument else 1
-        elif command == 0x64:
+        elif command == ESC_DOUBLE_HEIGHT:
             self.height = 2 if argument else 1
-        elif command == 0x61:
-            self.align = {0: "left", 1: "center", 2: "right"}.get(argument, "left")
-        elif command == 0x21:
-            self.bold = bool(argument & 8)
-            self.underline = bool(argument & 128)
-            self.width = 2 if argument & 32 else 1
-            self.height = 2 if argument & 16 else 1
-            self.font = "B" if argument & 1 else "A"
-        elif command == 0x2D:
+        elif command == ESC_ALIGN:
+            self.align = ALIGNMENTS.get(argument, "left")
+        elif command == ESC_PRINT_MODE:
+            self.apply_print_mode(argument)
+        elif command == ESC_UNDERLINE:
             self.underline = bool(argument)
-        elif command in (0x77, 0x6D):
+        elif command in (ESC_FULL_CUT, ESC_PARTIAL_CUT):
             self.finish("cut")
-        elif command == 0x74:
+        elif command == ESC_CODE_PAGE:
             self.encoding = CODE_PAGES.get(argument, "cp850")
             if argument not in CODE_PAGES:
                 self.warnings.add(f"Página de código {argument} não suportada; usado CP850.")
-        elif command in (0x76, 0x80):
-            self.events.append(dict(type="drawer", drawer=1 if command == 0x76 else 2, pulse_ms=argument))
-        elif command == 0x28 and packet[2] == 0x41:
+        elif command in (ESC_DRAWER_1, ESC_DRAWER_2):
+            drawer = 1 if command == ESC_DRAWER_1 else 2
+            self.events.append(dict(type="drawer", drawer=drawer, pulse_ms=argument))
+        elif command == ESC_BEEP and packet[2] == 0x41:
             pass  # Beep: sem dispositivo físico.
-        elif command == 0x2A:
+        elif command == ESC_IMAGE:
             self.warnings.add("Imagem ESC * não renderizada.")
         else:
             self.warnings.add(f"Comando ESC {command:02X} não suportado.")
 
+    def apply_print_mode(self, mode):
+        self.bold = bool(mode & PRINT_MODE_BOLD)
+        self.underline = bool(mode & PRINT_MODE_UNDERLINE)
+        self.width = 2 if mode & PRINT_MODE_DOUBLE_WIDTH else 1
+        self.height = 2 if mode & PRINT_MODE_DOUBLE_HEIGHT else 1
+        self.font = "B" if mode & PRINT_MODE_CONDENSED else "A"
+
     def handle_gs(self, packet):
         command = packet[1]
 
-        if packet[:3] == b"\x1dkQ":
+        if command == GS_BARCODE and packet[2] == QR_SYMBOLOGY:
             self.print_qr(packet)
-        elif packet == b"\x1d\xf9\x20\x00" or command in (0x48, 0x68, 0x77, 0x66):
+        elif packet == SELECT_ESCBEMA or command in GS_BARCODE_SETTINGS:
             pass  # Seleção EscBema e parâmetros de código de barras.
-        elif command == 0x6B:
+        elif command == GS_BARCODE:
             self.warnings.add("Código de barras não renderizado.")
         else:
             self.warnings.add(f"Comando GS {command:02X} não suportado.")
