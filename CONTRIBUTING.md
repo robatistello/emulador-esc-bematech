@@ -8,9 +8,12 @@ Contribuições são bem-vindas! Correções pequenas podem ir direto num pull r
 
 ```
 emulator/            código do programa
+  __init__.py        versão do programa
   __main__.py        ponto de entrada (python -m emulator e o executável)
+  cli.py             linha de comando: opções, bandeja ou terminal e mensagens de erro
   escpos.py          Parser incremental dos comandos EscBematech
-  server.py          servidores TCP e HTTP, histórico SQLite e linha de comando
+  history.py         histórico das impressões em SQLite
+  servers.py         servidor TCP da impressora e servidor HTTP do histórico
   logs.py            registro de eventos: no terminal ou em arquivo com rotação, na bandeja
   tray.py            ícone da bandeja do Windows, pela API Win32 com ctypes
   printer.ico        ícone da bandeja e do .exe
@@ -18,7 +21,7 @@ emulator/            código do programa
     fonts/           Roboto (interface) e Roboto Mono (papel)
 packaging/           build dos executáveis, LEIA-ME de cada pacote e avisos de licença
   licenses/          textos de licença das bibliotecas que o Python embute no executável
-tests/               testes Python (unittest) e do renderizador (Node)
+tests/               testes Python (unittest, um arquivo por módulo) e do renderizador (Node)
 tools/               send_demo.py (impressão de exemplo) e smoke_test.py (teste do executável)
 docs/                imagens do README
 .github/workflows/   testes a cada push e release a cada tag
@@ -143,7 +146,7 @@ python tools/smoke_test.py outputs/linux/EmuladorEscBematech
 
 ## Versões
 
-A versão fica na constante `VERSION` de `emulator/server.py`, no formato `maior.menor.correção`: o último número sobe em correções, o do meio em recursos novos e o primeiro em mudanças grandes. A página, o `--version`, o cabeçalho `Server` e as propriedades do `.exe` leem dela; não repita o número em outro arquivo.
+A versão fica na constante `VERSION` de `emulator/__init__.py`, no formato `maior.menor.correção`: o último número sobe em correções, o do meio em recursos novos e o primeiro em mudanças grandes. A página, o `--version`, o cabeçalho `Server` e as propriedades do `.exe` leem dela; não repita o número em outro arquivo.
 
 Para publicar uma versão, altere `VERSION`, faça o commit e envie a tag correspondente:
 

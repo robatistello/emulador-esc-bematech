@@ -7,7 +7,10 @@ from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
-from emulator.server import DEFAULT_KEEP, VERSION, History, main, running_servers
+from emulator import VERSION
+from emulator.cli import main
+from emulator.history import DEFAULT_KEEP, History
+from emulator.servers import running_servers
 
 
 def server_config(folder, port=0, web_port=0):

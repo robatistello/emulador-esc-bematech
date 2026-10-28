@@ -11,7 +11,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.request import urlopen
 
-from emulator.server import DEFAULT_KEEP, running_servers
+from emulator.history import DEFAULT_KEEP
+from emulator.servers import running_servers
 
 
 def wait_until(condition, seconds):

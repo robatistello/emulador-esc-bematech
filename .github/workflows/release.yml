@@ -22,9 +22,9 @@ jobs:
       - name: Conferir versão
         shell: pwsh
         run: |
-          $version = (Select-String -LiteralPath emulator/server.py -Pattern '^VERSION = "(.+)"$').Matches[0].Groups[1].Value
+          $version = (Select-String -LiteralPath emulator/__init__.py -Pattern '^VERSION = "(.+)"$').Matches[0].Groups[1].Value
           if ("v$version" -ne $env:GITHUB_REF_NAME) {
-            throw "A tag $env:GITHUB_REF_NAME não corresponde a VERSION = $version no emulator/server.py."
+            throw "A tag $env:GITHUB_REF_NAME não corresponde a VERSION = $version no emulator/__init__.py."
           }
 
       - name: Testes

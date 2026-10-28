@@ -23,7 +23,10 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 ## Arquitetura
 
 - `emulator/escpos.py` — `Parser` incremental: enquadra os bytes em comandos (aceita pacotes TCP fragmentados), mantém o estado de estilo e chama `save(job)` a cada corte (`ESC w`/`ESC m`) ou ao fechar a conexão. `handle_esc`, `handle_gs` e o tratamento de FS interpretam cada família. O job é um dict com `lines`, `events`, `warnings` e `raw_base64`.
-- `emulator/server.py` — servidor TCP (`PrinterServer`), servidor HTTP (`WebServer`), histórico SQLite (`History`, tabela `jobs`, que guarda as `DEFAULT_KEEP` impressões mais recentes ou o `--keep`) e linha de comando (`build_argument_parser`, `serve`, `main`). Rotas: `/`, `/style.css`, `/app.js`, `/paper.js`, `/qrcode.js`, as fontes em `/fonts/`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
+- `emulator/__init__.py` — só a constante `VERSION`.
+- `emulator/history.py` — histórico SQLite (`History`, tabela `jobs`), que guarda as `DEFAULT_KEEP` impressões mais recentes ou o `--keep`, com o resumo de cada uma em colunas para a lista.
+- `emulator/servers.py` — servidor TCP (`PrinterServer`, `PrinterHandler`), servidor HTTP (`WebServer`, `web_handler`) e `running_servers`, que sobe os dois juntos. Rotas: `/`, `/style.css`, `/app.js`, `/paper.js`, `/qrcode.js`, as fontes em `/fonts/`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
+- `emulator/cli.py` — linha de comando (`build_argument_parser`, `serve`, `main`): opções, registro, modo bandeja ou terminal e mensagens de erro, como porta ocupada ou banco sem permissão.
 - `emulator/logs.py` — `configure_logging`: no terminal, as mensagens vão para a tela; na bandeja, para `emulator.log` na pasta do histórico, com rotação de 1 MB e três cópias. Registra início, conexões (cliente, motivo do fim, bytes, impressões) e erros, nunca o conteúdo das impressões.
 - `emulator/tray.py` — ícone da bandeja via API Win32 com `ctypes`.
 - `emulator/__main__.py` — ponto de entrada de `python -m emulator` e do executável.
@@ -34,14 +37,14 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 - `emulator/web/qrcode.js` — biblioteca de terceiros (qrcode-generator 2.0.4, MIT). Não edite; para atualizar, substitua o arquivo inteiro e ajuste `THIRD-PARTY-NOTICES.txt`.
 - `packaging/` — `build.ps1`, `build.sh`, `requirements-build.txt` e os LEIA-ME de cada pacote, que viram `LEIA-ME.txt` no zip e no tar.gz. `notices.py` monta o `THIRD-PARTY-NOTICES.txt` do executável (o da raiz mais as licenças do Python embutido, de `packaging/licenses` e, no Windows, do `LICENSE.txt` do próprio Python); veja "Licenças nos executáveis" no CONTRIBUTING.md.
 - `tools/send_demo.py` — impressão de exemplo, também usada pelos testes (`build_demo`, `qr_command`); `tools/smoke_test.py` — teste do executável compilado, rodado pelo release nos dois sistemas.
-- `tests/` — `test_emulator.py` (parser, histórico, servidores), `test_lifecycle.py` (linha de comando, portas, encerramento), `test_logs.py` (destino e rotação do registro), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`).
+- `tests/` — um arquivo por módulo: `test_escpos.py`, `test_history.py`, `test_servers.py`, `test_lifecycle.py` (linha de comando, portas, encerramento), `test_logs.py` (destino e rotação do registro), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`). `support.py` tem o `parse` (bytes entregues um a um) e o `line_text` usados por vários deles.
 - `.github/workflows/` — `tests.yml` roda os testes no Windows e no Linux com o Python 3.14 (o mínimo suportado e o dos executáveis), e a formatação e o ESLint uma vez, a cada push e pull request; `release.yml` publica a Release a cada tag `v*`.
 
 ## Convenções
 
 - **Sem dependências Python**: só a biblioteca padrão. O build instala apenas o PyInstaller.
 - **Banco**: o esquema é criado direto, sem migrações. Ao mudar a tabela, os bancos existentes podem ser apagados.
-- **Versão**: constante `VERSION` em `emulator/server.py`; não repita o número em outro arquivo.
+- **Versão**: constante `VERSION` em `emulator/__init__.py`, lida também pelos scripts de build, pelo `smoke_test.py` e pelo `release.yml`; não repita o número em outro arquivo.
 - **Escopo**: o emulador é genérico para sistemas que imprimem em EscBematech. O ACBr aparece só como exemplo de configuração e referência dos comandos, nunca como o sistema-alvo.
 - Idiomas, nomes, espaçamento, comentários, termos e commits: siga o "Padrão de escrita" do CONTRIBUTING.md.
 
@@ -49,7 +52,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 
 - As portas são exclusivas no Windows (`SO_EXCLUSIVEADDRUSE`). Ao abrir uma segunda vez, o programa detecta a instância em execução pelo cabeçalho `Server` e só abre o histórico dela.
 - O HTTP recusa `Host` que não seja IP ou `localhost` (proteção contra DNS rebinding), e o `DELETE` também valida a origem.
-- Caminhos: `server.py` acha a página e o ícone ao lado do próprio pacote e as licenças em `PACKAGE_DIR.parent`. No executável, o PyInstaller extrai os recursos com a mesma disposição (`emulator/web`, `emulator/printer.ico`, licenças na raiz); ao mudar um caminho, ajuste os `--add-data` dos dois scripts de build. O histórico fica em `data/` ao lado do executável ou, pelos fontes, na raiz do projeto.
+- Caminhos: `servers.py` acha a página e `tray.py` o ícone ao lado do próprio arquivo, e `cli.py` acha as licenças em `PACKAGE_DIR.parent`. No executável, o PyInstaller extrai os recursos com a mesma disposição (`emulator/web`, `emulator/printer.ico`, licenças na raiz); ao mudar um caminho, ajuste os `--add-data` dos dois scripts de build. O histórico fica em `data/` ao lado do executável ou, pelos fontes, na raiz do projeto.
 - O `.exe` em `outputs/windows/` não é atualizado sozinho: depois de mudar os fontes, rode o build.
 - O `build.sh` usa o Python gerenciado do uv, compilado para glibc 2.17; trocar pelo Python do sistema faz o binário exigir a glibc da máquina de build, e o script falha na checagem final. Ele precisa de LF (garantido pelo `.gitattributes`). O `build.ps1` precisa de UTF-8 com BOM, senão o Windows PowerShell 5.1 estraga os acentos das mensagens.
 - O `.exe` é de arquivo único e sem console: o lançador do PyInstaller fica entre o terminal e o Python e desliga o Ctrl+C. `ensure_console` usa o console do avô, religa o Ctrl+C e, com `--console`, abre janela própria. Mudanças nessa área precisam ser testadas no `.exe` compilado, não só pelos fontes.

@@ -35,7 +35,7 @@ class LoggingTests(unittest.TestCase):
         with mock.patch("emulator.logs.MAX_LOG_BYTES", 300):
             self.configure(self.folder / "data")
 
-        logger = logging.getLogger("emulator.server")
+        logger = logging.getLogger("emulator.servers")
         for index in range(100):
             logger.info("Linha %d de teste, com texto para encher o arquivo.", index)
 

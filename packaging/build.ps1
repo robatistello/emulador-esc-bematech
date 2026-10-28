@@ -65,9 +65,9 @@ function Invoke-Checked([string]$FailureMessage, [scriptblock]$Command) {
 
 function Get-VersionParts {
     $pattern = '^VERSION = "(\d+)\.(\d+)\.(\d+)"$'
-    $match = Select-String -LiteralPath (Join-Path $PackagePath 'server.py') -Pattern $pattern
+    $match = Select-String -LiteralPath (Join-Path $PackagePath '__init__.py') -Pattern $pattern
     if (-not $match) {
-        throw 'VERSION não encontrada em emulator\server.py.'
+        throw 'VERSION não encontrada em emulator\__init__.py.'
     }
 
     return $match.Matches[0].Groups[1..3] | ForEach-Object { $_.Value }

@@ -25,7 +25,7 @@ STATIC_FILES = (
 
 
 def source_version():
-    source = (ROOT / "emulator" / "server.py").read_text(encoding="utf-8")
+    source = (ROOT / "emulator" / "__init__.py").read_text(encoding="utf-8")
     return re.search(r'^VERSION = "(.+)"$', source, re.MULTILINE).group(1)
 
 

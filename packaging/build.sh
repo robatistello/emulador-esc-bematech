@@ -23,7 +23,7 @@ require_command() {
 }
 
 read_version() {
-    tr -d '\r' <"$package_dir/server.py" | sed -n 's/^VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p'
+    tr -d '\r' <"$package_dir/__init__.py" | sed -n 's/^VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p'
 }
 
 prepare_environment() {
@@ -79,7 +79,7 @@ require_command objdump "O objdump não foi encontrado. Instale o pacote binutil
 [ -L "$project_root/work" ] && fail "A pasta work é um link; limpeza cancelada."
 
 version="$(read_version)"
-[ -n "$version" ] || fail "VERSION não encontrada em emulator/server.py."
+[ -n "$version" ] || fail "VERSION não encontrada em emulator/__init__.py."
 
 rm -rf "$work"
 prepare_environment
