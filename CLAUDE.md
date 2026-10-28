@@ -24,6 +24,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 
 - `emulator/escpos.py` — `Parser` incremental: enquadra os bytes em comandos (aceita pacotes TCP fragmentados), mantém o estado de estilo e chama `save(job)` a cada corte (`ESC w`/`ESC m`) ou ao fechar a conexão. `handle_esc`, `handle_gs` e o tratamento de FS interpretam cada família. O job é um dict com `lines`, `events`, `warnings` e `raw_base64`.
 - `emulator/server.py` — servidor TCP (`PrinterServer`), servidor HTTP (`WebServer`), histórico SQLite (`History`, tabela `jobs`) e linha de comando (`build_argument_parser`, `serve`, `main`). Rotas: `/`, `/style.css`, `/app.js`, `/paper.js`, `/qrcode.js`, as fontes em `/fonts/`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
+- `emulator/logs.py` — `configure_logging`: no terminal, as mensagens vão para a tela; na bandeja, para `emulator.log` na pasta do histórico, com rotação de 1 MB e três cópias. Registra início, conexões (cliente, motivo do fim, bytes, impressões) e erros, nunca o conteúdo das impressões.
 - `emulator/tray.py` — ícone da bandeja via API Win32 com `ctypes`.
 - `emulator/__main__.py` — ponto de entrada de `python -m emulator` e do executável.
 - `emulator/web/index.html` — estrutura da página e o script do tema, embutido antes do `style.css` para a página não abrir no tema errado.
@@ -33,7 +34,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 - `emulator/web/qrcode.js` — biblioteca de terceiros (qrcode-generator 2.0.4, MIT). Não edite; para atualizar, substitua o arquivo inteiro e ajuste `THIRD-PARTY-NOTICES.txt`.
 - `packaging/` — `build.ps1`, `build.sh`, `requirements-build.txt` e os LEIA-ME de cada pacote, que viram `LEIA-ME.txt` no zip e no tar.gz. `notices.py` monta o `THIRD-PARTY-NOTICES.txt` do executável (o da raiz mais as licenças do Python embutido, de `packaging/licenses` e, no Windows, do `LICENSE.txt` do próprio Python); veja "Licenças nos executáveis" no CONTRIBUTING.md.
 - `tools/send_demo.py` — impressão de exemplo, também usada pelos testes (`build_demo`, `qr_command`); `tools/smoke_test.py` — teste do executável compilado, rodado pelo release nos dois sistemas.
-- `tests/` — `test_emulator.py` (parser, histórico, servidores), `test_lifecycle.py` (linha de comando, portas, encerramento), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`).
+- `tests/` — `test_emulator.py` (parser, histórico, servidores), `test_lifecycle.py` (linha de comando, portas, encerramento), `test_logs.py` (destino e rotação do registro), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`).
 - `.github/workflows/` — `tests.yml` roda os testes no Windows e no Linux com o Python 3.14 (o mínimo suportado e o dos executáveis), e a formatação e o ESLint uma vez, a cada push e pull request; `release.yml` publica a Release a cada tag `v*`.
 
 ## Convenções

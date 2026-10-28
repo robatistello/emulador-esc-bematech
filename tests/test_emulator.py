@@ -332,6 +332,15 @@ class ServerTests(unittest.TestCase):
         self.send(b"Novo\n\x1bw")
         self.assertEqual([(job["id"], job["preview"]) for job in self.get_json("/api/jobs")], [(1, "Novo")])
 
+    def test_connection_is_logged_without_print_content(self):
+        with self.assertLogs("emulator.server", "INFO") as logs:
+            self.send(b"Primeiro\n\x1bwSegundo\n")
+
+        message = logs.output[-1]
+        self.assertIn("Conexão de 127.0.0.1 finalizada por conexão encerrada", message)
+        self.assertIn("impressões salvas: 2", message)
+        self.assertNotIn("Primeiro", message)
+
     def test_idle_connection_is_saved_as_idle(self):
         with mock.patch("emulator.server.IDLE_SECONDS", 0.6):
             with socket.create_connection(self.tcp.server_address, timeout=3) as client:

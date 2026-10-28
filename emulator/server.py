@@ -4,6 +4,7 @@ import argparse
 import errno
 import ipaddress
 import json
+import logging
 import socket
 import socketserver
 import sqlite3
@@ -18,9 +19,12 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 from emulator.escpos import Parser
+from emulator.logs import configure_logging
 
 VERSION = "1.1.0"
 SERVER_NAME = "EmuladorEscBematech"
+
+logger = logging.getLogger(__name__)
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 WEB_DIR = PACKAGE_DIR / "web"
@@ -127,23 +131,40 @@ class History:
 
 
 class PrinterHandler(socketserver.BaseRequestHandler):
+    END_REASONS = {"disconnect": "conexão encerrada", "idle": f"{IDLE_SECONDS} segundos sem dados"}
+
+    def setup(self):
+        self.client = self.client_address[0]
+        self.received = 0
+        self.saved = 0
+
+    def save(self, job):
+        self.server.history.save(job)
+        self.saved += 1
+
     def handle(self):
-        parser = Parser(self.server.history.save)
+        parser = Parser(self.save)
         reason = "disconnect"
 
         try:
             reason = self.receive(parser)
-        except OSError:
-            pass
+        except OSError as error:
+            logger.warning("Conexão de %s interrompida: %s", self.client, error)
         finally:
             parser.close(reason)
+            logger.info(
+                "Conexão de %s finalizada por %s: %d bytes, impressões salvas: %d.",
+                self.client,
+                self.END_REASONS[reason],
+                self.received,
+                self.saved,
+            )
 
     def receive(self, parser):
         # Timeout curto permite encerrar mesmo quando o select do Windows
         # não acorda imediatamente após shutdown feito por outra thread.
         self.request.settimeout(RECEIVE_TIMEOUT_SECONDS)
         last_received = time.monotonic()
-        received = 0
 
         while not self.server.stopping:
             try:
@@ -157,9 +178,10 @@ class PrinterHandler(socketserver.BaseRequestHandler):
                 break
 
             last_received = time.monotonic()
-            received += len(data)
-            if received > MAX_CONNECTION_BYTES:
+            self.received += len(data)
+            if self.received > MAX_CONNECTION_BYTES:
                 parser.warnings.add("Limite de 10 MiB por conexão atingido; impressão truncada.")
+                logger.warning("Conexão de %s passou de 10 MiB; impressão truncada.", self.client)
                 break
 
             parser.feed(data)
@@ -220,9 +242,17 @@ class PrinterServer(ExclusivePortMixin, socketserver.ThreadingTCPServer):
                 except OSError:
                     pass
 
+    def handle_error(self, request, client_address):
+        logger.exception("Erro ao processar a impressão de %s.", client_address[0])
+
 
 class WebServer(ExclusivePortMixin, ThreadingHTTPServer):
-    pass
+    def handle_error(self, request, client_address):
+        # O navegador fecha a conexão no meio da resposta ao trocar de página ou fechar a aba.
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+
+        logger.exception("Erro ao atender o histórico para %s.", client_address[0])
 
 
 def trusted_host(host):
@@ -421,18 +451,29 @@ def serve(config, browser_host):
 
     with running_servers(config) as (tcp, web):
         url = f"http://{browser_host}:{web.server_port}"
+        logger.info(
+            "Emulador %s iniciado: impressora em %s:%s, histórico em %s, banco em %s.",
+            VERSION,
+            config.host,
+            tcp.server_address[1],
+            url,
+            config.db.resolve(),
+        )
 
-        if config.tray:
-            from emulator.tray import run_tray
+        try:
+            if config.tray:
+                from emulator.tray import run_tray
 
-            run_tray(url, port=tcp.server_address[1])
-            return
+                run_tray(url, port=tcp.server_address[1])
+                return
 
-        print(f"Impressora: {config.host}:{tcp.server_address[1]}")
-        print(f"Histórico: {url}")
-        print("Protocolo: EscBematech — 48 colunas")
-        print(f"Banco: {config.db.resolve()} — Ctrl+C para sair", flush=True)
-        threading.Event().wait()
+            print(f"Impressora: {config.host}:{tcp.server_address[1]}")
+            print(f"Histórico: {url}")
+            print("Protocolo: EscBematech — 48 colunas")
+            print(f"Banco: {config.db.resolve()} — Ctrl+C para sair", flush=True)
+            threading.Event().wait()
+        finally:
+            logger.info("Encerrando o emulador.")
 
 
 def main(argv=None):
@@ -452,7 +493,15 @@ def main(argv=None):
         print(NOTICES_PATH.read_text(encoding="utf-8"))
         return 0
 
+    try:
+        configure_logging(config.db.parent if config.tray else None)
+    except OSError:
+        # Sem permissão de escrita na pasta, o erro aparece ao abrir o histórico logo abaixo.
+        configure_logging(None)
+
     def fail(message):
+        logger.error(message)
+
         if config.tray and sys.platform == "win32":
             from emulator.tray import show_error
 
@@ -472,6 +521,7 @@ def main(argv=None):
         if not running_emulator(url):
             return fail(str(error))
 
+        logger.info("Já havia um emulador em execução; abrindo o histórico dele em %s.", url)
         if config.tray:
             webbrowser.open(url)
         else:

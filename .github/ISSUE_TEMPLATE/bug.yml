@@ -44,6 +44,14 @@ body:
         compacte o arquivo em `.zip` e arraste o zip para cá. Confira antes se a impressão não tem dados pessoais.
 
   - type: textarea
+    id: log
+    attributes:
+      label: Registro do emulador
+      description: |
+        No executável do Windows, arraste para cá o `data/emulator.log`, que fica ao lado do programa. No terminal, cole
+        as mensagens mostradas. O registro não tem o conteúdo das impressões.
+
+  - type: textarea
     id: details
     attributes:
       label: Outros detalhes

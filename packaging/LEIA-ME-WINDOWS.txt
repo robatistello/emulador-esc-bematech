@@ -127,6 +127,10 @@ PROBLEMAS COMUNS
   status da impressora.
 - Imagens, logotipos e códigos de barras não são desenhados; aparecem
   como aviso abaixo da impressão. QR code é desenhado normalmente.
+- O arquivo emulator.log, na pasta "data", registra as conexões
+  recebidas e os erros, sem o conteúdo das impressões. Ele nunca passa
+  de uns 4 MB: os registros mais antigos são apagados sozinhos. Ao
+  relatar um problema, envie esse arquivo junto.
 
 
 SOBRE

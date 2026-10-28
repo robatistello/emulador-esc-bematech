@@ -41,6 +41,8 @@ O `chmod` repõe a permissão de execução quando o pacote foi extraído por um
 
 Nos dois sistemas, o histórico fica em `data/history.sqlite3`, ao lado do executável, e abre em http://127.0.0.1:9101.
 
+O programa registra o início, as conexões recebidas e os erros, sem o conteúdo das impressões. No terminal, essas mensagens aparecem na tela; na bandeja do Windows, vão para o `data/emulator.log`, na mesma pasta do histórico. Ao passar de 1 MB, o arquivo é renomeado e um novo começa; só os três anteriores são guardados, então o registro nunca passa de uns 4 MB. Ao relatar um problema, anexe esse arquivo.
+
 ## Configurar o sistema que imprime
 
 | Configuração | Valor |

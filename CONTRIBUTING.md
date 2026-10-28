@@ -11,6 +11,7 @@ emulator/            código do programa
   __main__.py        ponto de entrada (python -m emulator e o executável)
   escpos.py          Parser incremental dos comandos EscBematech
   server.py          servidores TCP e HTTP, histórico SQLite e linha de comando
+  logs.py            registro de eventos: no terminal ou em arquivo com rotação, na bandeja
   tray.py            ícone da bandeja do Windows, pela API Win32 com ctypes
   printer.ico        ícone da bandeja e do .exe
   web/               página do histórico (HTML, CSS e JavaScript)

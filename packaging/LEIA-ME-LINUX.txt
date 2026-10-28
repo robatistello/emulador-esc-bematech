@@ -168,6 +168,9 @@ PROBLEMAS COMUNS
   status da impressora.
 - Imagens, logotipos e códigos de barras não são desenhados; aparecem
   como aviso abaixo da impressão. QR code é desenhado normalmente.
+- O terminal mostra as conexões recebidas e os erros, sem o conteúdo
+  das impressões; como serviço, essas mensagens ficam no journalctl.
+  Ao relatar um problema, envie essas mensagens junto.
 
 
 SOBRE
