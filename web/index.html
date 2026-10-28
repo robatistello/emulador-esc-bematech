@@ -1,183 +1,72 @@
 <!doctype html>
 <html lang="pt-BR">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Emulador EscBematech — Histórico</title>
-<link id="favicon" rel="icon" type="image/svg+xml">
-<script>
-// Aplicado antes do CSS para a página não abrir piscando no tema errado.
-const systemDark=matchMedia('(prefers-color-scheme: dark)');
-function savedTheme(){try{return localStorage.getItem('tema')}catch{return null}}
-function applyTheme(){document.documentElement.dataset.theme=savedTheme()||(systemDark.matches?'dark':'light')}
-applyTheme();
-</script>
-<style>
-:root{color-scheme:light;--bg:#edf1f5;--header:#14263e;--panel:#fff;--item:#fff;--border:#dce3ec;--input:#fff;--text:#172337;--muted:#66748a;--header-muted:#b9c9dd;--accent:#2165d8;--active:#edf4ff;--warn:#96500a;--danger:#a52626;--danger-border:#c93c3c;--shadow:0 5px 24px #17233718}:root[data-theme=dark]{color-scheme:dark;--bg:#0f1a2b;--header:#0a1322;--panel:#172538;--item:#1c2c42;--border:#2b3d56;--input:#0f1a2b;--text:#e3eaf3;--muted:#93a3b8;--header-muted:#9fb2c9;--accent:#5b9bff;--active:#1f3554;--warn:#f0b35a;--danger:#ff8a8a;--danger-border:#a94848;--shadow:0 6px 28px #00000080}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui}header{position:relative;background:var(--header);color:white;padding:22px 28px}#theme{position:absolute;top:22px;right:28px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #ffffff40;border-radius:8px;background:transparent;color:inherit;cursor:pointer}#theme svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}:root[data-theme=dark] #theme .moon,:root:not([data-theme=dark]) #theme .sun{display:none}#theme:hover{border-color:#ffffffa0}h1{font-size:22px;margin:0 0 5px}header p{margin:0;color:var(--header-muted)}main{display:grid;grid-template-columns:360px 1fr;max-width:1200px;margin:24px auto;gap:24px;padding:0 20px}aside,.viewer{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px}.viewer{min-width:0}h2{font-size:17px;margin:0 0 15px}#search{width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:12px;background:var(--input);color:var(--text)}.follow{display:flex;align-items:center;gap:8px;margin:-2px 0 12px;font-size:13px;color:var(--muted);cursor:pointer}.follow input{margin:0;accent-color:var(--accent)}.item{display:block;width:100%;text-align:left;border:1px solid var(--border);border-radius:7px;background:var(--item);padding:12px;margin-bottom:8px;cursor:pointer;color:inherit}.item:hover{border-color:var(--muted)}.item.active{border-color:var(--accent);background:var(--active)}.item small{display:block;color:var(--muted);margin-top:6px;overflow-wrap:anywhere}#list{max-height:65vh;overflow:auto;margin-right:-12px;padding-right:12px;scrollbar-width:thin;scrollbar-gutter:stable}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}a{color:var(--accent)}.actions{display:flex;gap:16px}.link{padding:0;border:0;background:none;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}.paper-scroll{overflow-x:auto}#paper{background:#fffdf4;box-shadow:var(--shadow);width:364px;margin:25px auto;padding:24px 14px;font-family:Consolas,monospace;font-size:13px;color:#171717;overflow:auto}.paper-row{display:block;width:100%;height:auto}.empty{color:var(--muted);line-height:1.6}#paper .empty{color:#6b778b}#warnings{color:var(--warn);font-size:13px;white-space:pre-line}#status{font-size:12px;color:var(--header-muted);margin-top:8px}#meta{font-size:13px;color:var(--muted)}footer{text-align:center;font-size:12px;color:var(--muted);padding:0 20px 24px}footer a{color:inherit}#events{margin-top:18px;padding:14px;background:var(--active);border:1px solid var(--border);border-radius:7px}#events p{margin:0}#events p+p{margin-top:8px}#clear{width:100%;margin-top:14px;padding:10px;border:1px solid var(--danger-border);border-radius:6px;background:transparent;color:var(--danger);cursor:pointer}#clear:disabled{opacity:.45;cursor:default}@media(max-width:750px){main{grid-template-columns:1fr}#list{max-height:240px}}
-</style>
-<header><button id="theme" type="button"><svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><h1>Emulador EscBematech</h1><p>48 colunas · Histórico de impressões</p><div id="status">Conectando…</div></header>
-<main><aside><h2 id="count">Histórico</h2><input id="search" type="search" placeholder="Buscar por número ou texto" aria-label="Buscar impressões"><label class="follow"><input id="follow" type="checkbox">Mostrar novas impressões automaticamente</label><div id="list"></div><button id="clear" disabled>Limpar histórico</button></aside>
-<section class="viewer"><div class="toolbar"><h2 id="title"></h2><div class="actions"><button id="image" class="link" type="button" hidden>Baixar imagem</button><a id="download" hidden>Baixar comandos brutos</a></div></div><div id="meta"></div><div id="events" hidden></div><div class="paper-scroll" id="paper-scroll" hidden><div id="paper"></div></div><div id="warnings"></div></section></main>
-<footer>Emulador EscBematech {{VERSION}} · desenvolvido por <a href="https://github.com/robatistello" target="_blank" rel="noopener">Rodrigo Batistello</a></footer>
-<script src="/qrcode.js"></script>
-<script src="/paper.js"></script>
-<script>
-let jobs=[],listTag='',selected=null,downloadUrl=null,generation=0,clearing=false,currentJob=null,lastSeen=null,listed=false;
-const $=id=>document.getElementById(id);
-const pageTitle=document.title;
-function iconUrl(dot){
-  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">'+
-    '<rect x="3" y="3" width="122" height="122" rx="26" fill="#14263e"/>'+
-    '<rect x="34" y="18" width="61" height="40" rx="4" fill="#f2f6fc"/>'+
-    '<rect x="19" y="46" width="91" height="49" rx="8" fill="#64afff"/>'+
-    '<circle cx="95" cy="61" r="4" fill="#14263e"/>'+
-    '<rect x="34" y="76" width="61" height="35" fill="#f2f6fc"/>'+
-    '<rect x="44" y="85" width="41" height="4" fill="#14263e"/><rect x="44" y="95" width="35" height="4" fill="#14263e"/>'+
-    (dot?'<circle cx="101" cy="27" r="22" fill="#e5484d" stroke="#fff" stroke-width="6"/>':'')+'</svg>';
-  return 'data:image/svg+xml,'+encodeURIComponent(svg);
-}
-function updateUnread(){
-  const unread=lastSeen===null?0:jobs.filter(job=>job.id>lastSeen).length;
-  document.title=(unread?`(${unread}) `:'')+pageTitle;
-  $('favicon').href=iconUrl(unread>0);
-}
-function trackUnread(){
-  const newest=jobs.length?jobs[0].id:0;
-  if(lastSeen===null||!document.hidden)lastSeen=newest;
-  // Limpar o histórico em outra aba faz os números recomeçarem do 1.
-  else if(newest<lastSeen)lastSeen=0;
-  updateUnread();
-}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)trackUnread()});
-updateUnread();
-function date(value){return new Date(value).toLocaleString('pt-BR')}
-function fileName(job,extension){
-  const d=new Date(job.created_at),two=n=>String(n).padStart(2,'0');
-  const stamp=`${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
-  return `impressao-${job.id}_${stamp}.${extension}`;
-}
-function renderList(){
-  $('list').replaceChildren();
-  const query=$('search').value.toLocaleLowerCase(),number=/^\s*#\s*(\d+)\s*$/.exec(query);
-  const matches=job=>number?job.id===Number(number[1]):(job.id+' '+job.preview).toLocaleLowerCase().includes(query);
-  for(const job of jobs.filter(matches)){
-    const button=document.createElement('button');button.className='item'+(selected===job.id?' active':'');
-    const label=document.createElement('strong');label.textContent='Impressão #'+job.id+' · '+date(job.created_at);
-    const preview=document.createElement('small');preview.textContent=job.preview||'(sem texto)';
-    button.append(label,preview);button.onclick=()=>show(job.id);$('list').append(button);
-  }
-  if(!$('list').children.length){const p=document.createElement('p');p.className='empty';p.textContent='Nenhuma impressão encontrada.';$('list').append(p)}
-  $('count').textContent='Histórico ('+jobs.length+')';
-  $('clear').disabled=clearing||jobs.length===0;
-}
-async function loadJob(id){
-  const response=await fetch('/api/jobs/'+id);if(!response.ok)throw Error('Falha ao carregar impressão');
-  return response.json();
-}
-async function show(id,loaded){
-  const version=generation;
-  selected=id;renderList();
-  try{
-    const job=loaded||await loadJob(id);if(selected!==id||version!==generation)return;
-    $('title').textContent='Impressão #'+id;
-    $('meta').textContent=date(job.created_at)+' · '+(job.reason==='cut'?'Finalizado por corte':'Finalizado ao encerrar conexão');
-    currentJob=job;renderCurrent();
-    if(downloadUrl)URL.revokeObjectURL(downloadUrl);
-    const bytes=Uint8Array.from(atob(job.raw_base64),c=>c.charCodeAt(0));
-    downloadUrl=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
-    $('download').href=downloadUrl;$('download').download=fileName(job,'bin');$('download').hidden=false;
-  }catch(error){$('status').textContent=error.message}
-}
-function showEmpty(message){
-  $('title').textContent='Selecione uma impressão';
-  const p=document.createElement('p');p.className='empty';p.textContent=message;
-  $('paper').replaceChildren(p);$('paper-scroll').hidden=false;
-}
-async function refresh(){
-  const version=generation;
-  try{
-    // Sem mudanças o servidor responde 304, sem corpo: não baixa nem recria a lista,
-    // o que perderia foco, hover e rolagem a cada 2 segundos.
-    const response=await fetch('/api/jobs',{headers:listTag?{'If-None-Match':listTag}:{}});
-    if(response.status!==304&&!response.ok)throw Error('HTTP '+response.status);
-    if(!clearing&&version===generation){
-      if(response.status!==304){
-        const previous=jobs.length?jobs[0].id:0;
-        listTag=response.headers.get('ETag')||'';jobs=await response.json();renderList();trackUnread();
-        const newest=jobs.length?jobs[0].id:0;
-        if($('follow').checked&&listed)await followNewest(newest<previous?0:previous);
-        listed=true;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Emulador EscBematech — Histórico</title>
+  <link id="favicon" rel="icon" type="image/svg+xml" />
+  <script>
+    // Aplicado antes do CSS para a página não abrir piscando no tema errado.
+    const systemDark = matchMedia('(prefers-color-scheme: dark)');
+
+    function savedTheme() {
+      try {
+        return localStorage.getItem('tema');
+      } catch {
+        return null;
       }
-      $('status').textContent='Conectado · atualização automática a cada 2 segundos';
-      if(selected===null&&jobs.length)await show(jobs[0].id);
-      else if(!jobs.length&&!$('paper').children.length)
-        showEmpty('Envie uma impressão para a porta TCP configurada. As impressões anteriores ficam salvas aqui, inclusive após reiniciar o servidor.');
     }
-  }catch(error){$('status').textContent='Servidor indisponível. Tentando reconectar…'}
-  setTimeout(refresh,2000);
-}
-async function followNewest(after){
-  for(const summary of jobs.filter(job=>job.id>after)){
-    const job=await loadJob(summary.id);
-    // Muitos sistemas mandam a abertura da gaveta logo depois do cupom, em outra
-    // conexão; pular para ela esconderia a impressão que acabou de sair.
-    if(job.lines.length||!job.events.length){await show(summary.id,job);return}
-  }
-}
-async function clearHistory(){
-  if(clearing||!jobs.length)return;
-  if(!confirm('Apagar todas as impressões do histórico? Essa ação não pode ser desfeita.'))return;
-  clearing=true;generation++;renderList();
-  try{
-    const response=await fetch('/api/jobs',{method:'DELETE'});
-    if(!response.ok)throw Error('Não foi possível limpar o histórico.');
-    generation++;jobs=[];listTag='';selected=null;currentJob=null;$('search').value='';trackUnread();
-    if(downloadUrl){URL.revokeObjectURL(downloadUrl);downloadUrl=null}
-    $('download').hidden=true;$('download').removeAttribute('href');$('image').hidden=true;
-    $('meta').textContent='';$('warnings').textContent='';
-    $('events').replaceChildren();$('events').hidden=true;
-    showEmpty('Histórico limpo. As próximas impressões aparecerão aqui.');
-    $('status').textContent='Histórico apagado.';
-  }catch(error){$('status').textContent=error.message}
-  finally{clearing=false;renderList()}
-}
-$('clear').onclick=clearHistory;
-$('image').onclick=async()=>{
-  try{
-    const url=URL.createObjectURL(await paperPng($('paper')));
-    const link=document.createElement('a');link.href=url;link.download=fileName(currentJob,'png');link.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }catch(error){$('status').textContent=error.message}
-};
-function renderCurrent(){
-  if(!currentJob)return;
-  const events=currentJob.events;
-  $('events').replaceChildren();$('events').hidden=events.length===0;
-  for(const event of events){const p=document.createElement('p');p.textContent=event.description;$('events').append(p)}
-  $('paper-scroll').hidden=events.length>0&&currentJob.lines.length===0;
-  const qrWarnings=renderPaper($('paper'),currentJob.lines);
-  $('image').hidden=currentJob.lines.length===0;
-  $('warnings').textContent=[...currentJob.warnings,...qrWarnings].join('\n');
-}
-function updateThemeButton(){
-  const label=document.documentElement.dataset.theme==='dark'?'Usar tema claro':'Usar tema escuro';
-  $('theme').title=label;$('theme').setAttribute('aria-label',label);
-}
-$('theme').onclick=()=>{
-  const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';
-  document.documentElement.dataset.theme=theme;
-  try{localStorage.setItem('tema',theme)}catch{}
-  updateThemeButton();
-};
-systemDark.addEventListener('change',()=>{applyTheme();updateThemeButton()});
-updateThemeButton();
-// Barras clássicas ocupam espaço e as sobrepostas não; o recuo completa os 12px
-// para os itens alinharem com a busca e o botão nos dois casos.
-$('list').style.paddingRight=Math.max(0,12-($('list').offsetWidth-$('list').clientWidth))+'px';
-try{$('follow').checked=localStorage.getItem('mostrar-novas')==='1'}catch{}
-$('follow').onchange=()=>{
-  try{localStorage.setItem('mostrar-novas',$('follow').checked?'1':'0')}catch{}
-  if($('follow').checked)followNewest(0).catch(error=>{$('status').textContent=error.message});
-};
-$('search').oninput=renderList;refresh();
-</script>
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = savedTheme() || (systemDark.matches ? 'dark' : 'light');
+    }
+
+    applyTheme();
+  </script>
+  <link rel="stylesheet" href="/style.css" />
+  <header>
+    <button id="theme" type="button">
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+      </svg>
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    </button>
+    <h1>Emulador EscBematech</h1>
+    <p>48 colunas · Histórico de impressões</p>
+    <div id="status">Conectando…</div>
+  </header>
+  <main>
+    <aside>
+      <h2 id="count">Histórico</h2>
+      <input id="search" type="search" placeholder="Buscar por número ou texto" aria-label="Buscar impressões" />
+      <label class="follow">
+        <input id="follow" type="checkbox" />
+        Mostrar novas impressões automaticamente
+      </label>
+      <div id="list"></div>
+      <button id="clear" disabled>Limpar histórico</button>
+    </aside>
+    <section class="viewer">
+      <div class="toolbar">
+        <h2 id="title"></h2>
+        <div class="actions">
+          <button id="image" class="link" type="button" hidden>Baixar imagem</button>
+          <a id="download" hidden>Baixar comandos brutos</a>
+        </div>
+      </div>
+      <div id="meta"></div>
+      <div id="events" hidden></div>
+      <div class="paper-scroll" id="paper-scroll" hidden><div id="paper"></div></div>
+      <div id="warnings"></div>
+    </section>
+  </main>
+  <footer>
+    Emulador EscBematech {{VERSION}} · desenvolvido por
+    <a href="https://github.com/robatistello" target="_blank" rel="noopener">Rodrigo Batistello</a>
+  </footer>
+  <script src="/qrcode.js"></script>
+  <script src="/paper.js"></script>
+  <script src="/app.js"></script>
 </html>

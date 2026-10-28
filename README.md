@@ -75,7 +75,7 @@ Aberturas de gaveta aparecem na lista e nos detalhes com o número da gaveta e a
 
 O botão **Limpar histórico** exclui todas as impressões após confirmação. Não há exclusão automática. Para backup, pare o servidor e copie `data/history.sqlite3`.
 
-Um corte `ESC w` ou `ESC m` salva a impressão. Sem corte, salva ao encerrar a conexão ou após 60 segundos de inatividade. Uma conexão pode produzir várias impressões. O limite é de 10 MiB por conexão; ao excedê-lo a impressão é truncada com aviso. Encerrar abruptamente o processo pode perder uma impressão ainda não finalizada.
+Um corte `ESC w` ou `ESC m` salva a impressão. Sem corte, salva ao encerrar a conexão ou após 60 segundos de inatividade; os detalhes indicam qual dos três motivos finalizou cada impressão. Envios sem texto, QR, gaveta ou aviso, como uma inicialização ou avanço de papel logo depois do corte, não viram impressão. Uma conexão pode produzir várias impressões. O limite é de 10 MiB por conexão; ao excedê-lo a impressão é truncada com aviso. Encerrar abruptamente o processo pode perder uma impressão ainda não finalizada.
 
 ## Comandos e limites
 
@@ -126,6 +126,14 @@ py -m unittest discover -s tests -v
 ```
 
 Os testes verificam fragmentação byte a byte, comandos Bematech, QR binário, cortes, recebimento TCP, API HTTP, limpeza e persistência. No Windows, também verificam o ícone nativo, as ações da bandeja e o encerramento com impressão pendente. Se tiver Node.js, `node tests/test_paper.cjs` verifica também a geometria do renderizador e a geração do QR; Node não é necessário para executar o emulador.
+
+O HTML, o CSS e o JavaScript da pasta `web` seguem a formatação do [Prettier](https://prettier.io/), configurado em `.prettierrc.json`; a biblioteca `web/qrcode.js` fica de fora, por ser de terceiros. Depois de editar a página, formate com:
+
+```bash
+npx prettier@3.9.10 --write web tests/test_paper.cjs
+```
+
+O `tests.yml` confere a formatação com `--check` e falha se algum desses arquivos estiver fora do padrão.
 
 ## Versão
 

@@ -23,7 +23,10 @@ ROOT = Path(__file__).resolve().parent
 DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT
 VERSION = "1.1.0"
 SERVER_NAME = "EmuladorEscBematech"
+IDLE_SECONDS = 60
 STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
+          "/style.css": ("style.css", "text/css; charset=utf-8"),
+          "/app.js": ("app.js", "application/javascript; charset=utf-8"),
           "/paper.js": ("paper.js", "application/javascript; charset=utf-8"),
           "/qrcode.js": ("qrcode.js", "application/javascript; charset=utf-8")}
 
@@ -48,6 +51,10 @@ class History:
             # O resumo em colunas evita decodificar todos os payloads a cada atualização da lista.
             db.execute("CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY, payload TEXT NOT NULL,"
                        " created_at TEXT NOT NULL, reason TEXT NOT NULL, preview TEXT NOT NULL)")
+            # Com a tabela já criada, um banco somente leitura abre sem erro e só
+            # falharia ao gravar a primeira impressão, depois que ela foi recebida.
+            # Um comando de escrita que não afeta linhas já revela isso.
+            db.execute("DELETE FROM jobs WHERE 0")
 
     def save(self, job):
         with closing(sqlite3.connect(self.path)) as db, db:
@@ -84,7 +91,7 @@ class History:
 class PrinterHandler(socketserver.BaseRequestHandler):
     def handle(self):
         parser = Parser(self.server.history.save)
-        received = 0
+        received, reason = 0, "disconnect"
         try:
             # Timeout curto permite encerrar mesmo quando o select do Windows
             # não acorda imediatamente após shutdown feito por outra thread.
@@ -94,7 +101,8 @@ class PrinterHandler(socketserver.BaseRequestHandler):
                 try:
                     data = self.request.recv(4096)
                 except socket.timeout:
-                    if time.monotonic() - last_received >= 60:
+                    if time.monotonic() - last_received >= IDLE_SECONDS:
+                        reason = "idle"
                         break
                     continue
                 if not data:
@@ -108,7 +116,7 @@ class PrinterHandler(socketserver.BaseRequestHandler):
         except (OSError, TimeoutError):
             pass
         finally:
-            parser.close()
+            parser.close(reason)
 
 
 class PortInUseError(OSError):
@@ -281,6 +289,16 @@ def running_emulator(url):
         return False
 
 
+def port_number(value):
+    try:
+        port = int(value)
+    except ValueError:
+        port = -1
+    if not 0 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"porta inválida: {value} (use um número de 0 a 65535)")
+    return port
+
+
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if sys.stderr is None and sys.platform == "win32":
@@ -302,8 +320,8 @@ def main(argv=None):
     args.add_argument("-h", "--help", action="help", help="Mostra esta ajuda e sai")
     args.add_argument("--host", default="127.0.0.1",
                       help="Endereço de escuta; 0.0.0.0 aceita outros computadores (padrão: 127.0.0.1)")
-    args.add_argument("--port", type=int, default=9100, help="Porta da impressora (padrão: 9100)")
-    args.add_argument("--web-port", type=int, default=9101, help="Porta do histórico no navegador (padrão: 9101)")
+    args.add_argument("--port", type=port_number, default=9100, help="Porta da impressora (padrão: 9100)")
+    args.add_argument("--web-port", type=port_number, default=9101, help="Porta do histórico no navegador (padrão: 9101)")
     args.add_argument("--db", type=Path, default=DATA_ROOT / "data" / "history.sqlite3",
                       help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)")
     args.add_argument("--version", action="version", version=f"Emulador EscBematech {VERSION}",
@@ -351,6 +369,9 @@ def main(argv=None):
             webbrowser.open(url)
         else:
             print(f"O emulador já está em execução. Histórico: {url}")
+    except sqlite3.Error as error:
+        return fail(f"Não foi possível usar o histórico em {config.db.resolve()}: {error}. "
+                    "Escolha outro arquivo com --db.")
     except (OSError, RuntimeError) as error:
         return fail(str(error))
     return 0

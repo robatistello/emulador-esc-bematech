@@ -15,14 +15,15 @@ node tests/test_paper.cjs                # testes do renderizador e do QR
 python tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe  # abre o executável compilado e confere uma impressão
 ```
 
-Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittest`.
+Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittest`. Depois de editar a página ou o teste Node, rode `npx prettier@3.9.10 --write web tests/test_paper.cjs`; o CI confere com `--check`.
 
 ## Arquitetura
 
 - `escpos.py` — `Parser` incremental: enquadra os bytes em comandos (aceita pacotes TCP fragmentados), mantém o estado de estilo e chama `save(job)` a cada corte (`ESC w`/`ESC m`) ou ao fechar a conexão. O job é um dict com `lines`, `events`, `warnings` e `raw_base64`.
-- `server.py` — servidor TCP (`PrinterServer`), servidor HTTP (`WebServer`), histórico SQLite (`History`, tabela `jobs`) e `main`. Rotas: `/`, `/paper.js`, `/qrcode.js`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
+- `server.py` — servidor TCP (`PrinterServer`), servidor HTTP (`WebServer`), histórico SQLite (`History`, tabela `jobs`) e `main`. Rotas: `/`, `/style.css`, `/app.js`, `/paper.js`, `/qrcode.js`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
 - `web/paper.js` — layout e renderização em SVG com células fixas de 48 colunas; gera a matriz do QR a partir de `data_base64` e exporta o papel como PNG (`paperPng`).
-- `web/index.html` — página do histórico; consulta `/api/jobs` a cada 2 segundos. Com a aba em segundo plano, conta as impressões novas no título e põe um ponto no ícone (SVG gerado na própria página). A opção "Mostrar novas impressões automaticamente" seleciona a mais recente, pulando as que são só abertura de gaveta, e também fica em `localStorage`. O tema claro/escuro segue o sistema, e a escolha manual fica em `localStorage`.
+- `web/index.html` — estrutura da página do histórico e o script do tema, que fica embutido antes do `style.css` para a página não abrir no tema errado. O visual fica em `web/style.css`.
+- `web/app.js` — comportamento da página; consulta `/api/jobs` a cada 2 segundos. Com a aba em segundo plano, conta as impressões novas no título e põe um ponto no ícone (SVG gerado na própria página). A opção "Mostrar novas impressões automaticamente" seleciona a mais recente, pulando as que são só abertura de gaveta, e também fica em `localStorage`. O tema claro/escuro segue o sistema, e a escolha manual fica em `localStorage`.
 - `tray.py` — ícone da bandeja via API Win32 com `ctypes`. `start_tray.pyw` inicia a bandeja pelos fontes, sem terminal.
 - `tests/` — testes Python (`unittest`) e do renderizador (Node). Os módulos Python ficam na raiz para manter as importações simples.
 - `tools/send_demo.py` — envia uma impressão de exemplo sem precisar de um sistema emissor; os testes usam `build_demo` e `qr_command`.
@@ -37,6 +38,7 @@ Rode sempre os dois conjuntos de testes: o teste Node não faz parte do `unittes
 - **Idiomas**: identificadores em inglês; interface, mensagens, comentários, README e mensagens de commit em português.
 - **Público**: o emulador é genérico para sistemas que imprimem em EscBematech. Cite o ACBr só como exemplo de configuração ou referência dos comandos, nunca como o sistema-alvo, e não cite sistemas específicos que o usam.
 - **Termos**: cada envio é uma *impressão* na interface e um `job` no código. Não use "recibo"/`receipt`; nem todo envio é recibo (gaveta, relatórios, DANFE).
+- **Formatação**: HTML, CSS e JavaScript seguem o Prettier (`.prettierrc.json`), com uma linha em branco entre funções e regras de CSS; o Prettier preserva essas linhas, mas não as cria. `web/qrcode.js` fica de fora (`.prettierignore`).
 - **Comentários**: só quando explicam um porquê que o código não mostra (protocolo, peculiaridades do Windows, segurança). Não descreva o que o código faz nem o histórico das mudanças.
 - **Banco**: o esquema é criado direto, sem migrações. Ao mudar a tabela, os bancos existentes podem ser apagados.
 - **Versão**: constante `VERSION` no `server.py` (`maior.menor.correção`); página, `--version`, cabeçalho `Server` e propriedades do `.exe` leem dela. Não repita o número em outro arquivo.

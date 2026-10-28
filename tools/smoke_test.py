@@ -67,7 +67,7 @@ def main():
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             wait_for(lambda: fetch(url + "/"), 60, "O histórico não respondeu.")
-            for path in ("/paper.js", "/qrcode.js"):
+            for path in ("/style.css", "/app.js", "/paper.js", "/qrcode.js"):
                 fetch(url + path)
             with socket.create_connection(("127.0.0.1", port), timeout=5) as connection:
                 connection.sendall(build_demo(qr=True))

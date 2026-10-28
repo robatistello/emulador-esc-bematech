@@ -94,6 +94,19 @@ class LifecycleTests(unittest.TestCase):
                       "--db", str(Path(folder) / "history.sqlite3")])
             self.assertIn(f"A porta {port} já está em uso por outro programa", errors.getvalue())
 
+    def test_invalid_port_and_unusable_database_are_reported(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for argv, message in ((["--port", "99999"], "porta inválida: 99999"),
+                                  (["--web-port", "abc"], "porta inválida: abc"),
+                                  (["--port", "0", "--web-port", "0", "--db", folder],
+                                   "Não foi possível usar o histórico")):
+                with self.subTest(argv=argv):
+                    errors = StringIO()
+                    with redirect_stderr(errors), self.assertRaises(SystemExit) as exit:
+                        main(["--console", *argv])
+                    self.assertEqual(exit.exception.code, 2)
+                    self.assertIn(message, errors.getvalue())
+
 
 @unittest.skipUnless(sys.platform == "win32", "Bandeja nativa do Windows")
 @unittest.skipIf(os.environ.get("GITHUB_ACTIONS"), "GitHub Actions não tem área de trabalho interativa")

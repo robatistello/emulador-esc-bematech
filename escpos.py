@@ -46,11 +46,17 @@ class Parser:
         self.lines.append(dict(align=self.align, spans=self.spans, spacing=self.line_spacing))
         self.spans = []
 
+    def has_content(self):
+        return bool(self.events or self.warnings) or any(
+            line.get("type") == "qr" or any(span["text"].strip() for span in line["spans"]) for line in self.lines)
+
     def finish(self, reason="disconnect"):
         self.flush_text()
         if self.spans:
             self.newline()
-        if self.raw:
+        # Sistemas costumam mandar inicialização ou avanço de papel logo depois do
+        # corte; sem texto, QR, gaveta ou aviso, isso não é uma nova impressão.
+        if self.has_content():
             self.save(dict(protocol="bematech", created_at=datetime.now(timezone.utc).isoformat(),
                            reason=reason, lines=self.lines, events=self.events, warnings=sorted(self.warnings),
                            raw_base64=base64.b64encode(self.raw).decode("ascii")))
@@ -181,9 +187,9 @@ class Parser:
             else:
                 self.warnings.add(f"Controle {b:02X} não suportado.")
 
-    def close(self):
+    def close(self, reason="disconnect"):
         if self.pending:
             self.raw.extend(self.pending)
             self.pending.clear()
             self.warnings.add("Comando incompleto ao encerrar a conexão.")
-        self.finish()
+        self.finish(reason)

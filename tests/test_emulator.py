@@ -1,11 +1,14 @@
 import base64
 import json
+import os
 import socket
 import sqlite3
+import stat
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 from contextlib import closing
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
@@ -120,6 +123,13 @@ class EmulatorTests(unittest.TestCase):
     def test_status_does_not_create_jobs(self):
         self.assertEqual(self.parse(b"\x10\x04\x01\x1d\xf8\x31"), [])
 
+    def test_bytes_after_cut_do_not_create_empty_job(self):
+        jobs = self.parse(b"Texto\n\x1bw\x1b@\n \n")
+        self.assertEqual([job["reason"] for job in jobs], ["cut"])
+        self.assertEqual(self.parse(b"\x1b@\x1ba\x01\n\n\x1bw"), [])
+        image = self.parse(b"\x1b*\x21\x01\x00abc")
+        self.assertEqual(image[0]["warnings"], ["Imagem ESC * não renderizada."])
+
     def test_drawer_events_fragmented_and_separated_by_cuts(self):
         first, second = self.parse(b"\x1bv\xc8Texto\n\x1bw\x1b\x80\x64\x1bm")
         self.assertEqual(first["events"], [dict(type="drawer", drawer=1, pulse_ms=200)])
@@ -164,6 +174,31 @@ class EmulatorTests(unittest.TestCase):
             self.assertEqual(len(restored.list()), 2)
             self.assertTrue(restored.get(2)["lines"][0]["spans"][0]["bold"])
 
+    def test_idle_connection_is_saved_as_idle(self):
+        with tempfile.TemporaryDirectory() as folder, mock.patch("server.IDLE_SECONDS", 0.6):
+            history = History(Path(folder) / "history.sqlite3")
+            with PrinterServer(("127.0.0.1", 0), PrinterHandler) as tcp:
+                tcp.history = history
+                threading.Thread(target=tcp.serve_forever, daemon=True).start()
+                try:
+                    with socket.create_connection(tcp.server_address, timeout=3) as client:
+                        client.sendall(b"Sem corte\n")
+                        self.assertEqual(client.recv(1), b"")
+                    self.assertEqual(history.list()[0]["reason"], "idle")
+                finally:
+                    tcp.shutdown()
+
+    def test_read_only_database_fails_on_open(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "history.sqlite3"
+            History(path)
+            os.chmod(path, stat.S_IREAD)
+            try:
+                with self.assertRaises(sqlite3.Error):
+                    History(path)
+            finally:
+                os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+
     def test_second_instance_cannot_share_ports(self):
         for server_class, handler in ((PrinterServer, PrinterHandler), (WebServer, web_handler(None))):
             with self.subTest(server=server_class.__name__), server_class(("127.0.0.1", 0), handler) as first:
@@ -192,6 +227,11 @@ class EmulatorTests(unittest.TestCase):
                             self.assertIn(f"EscBematech {VERSION} ·".encode(), page)
                             self.assertNotIn(b"{{VERSION}}", page)
                             self.assertEqual(r.headers["Server"].split()[0], f"EmuladorEscBematech/{VERSION}")
+                        with urlopen(url + "/style.css") as r:
+                            self.assertEqual(r.headers["Content-Type"], "text/css; charset=utf-8")
+                            self.assertIn(b"--accent", r.read())
+                        with urlopen(url + "/app.js") as r:
+                            self.assertIn(b"function refresh", r.read())
                         with urlopen(url + "/paper.js") as r:
                             self.assertIn(b"layoutPaper", r.read())
                         with urlopen(url + "/qrcode.js") as r:
