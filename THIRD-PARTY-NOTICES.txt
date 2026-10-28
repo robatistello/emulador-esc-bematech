@@ -1,7 +1,7 @@
 Bibliotecas de terceiros incluídas no Emulador EscBematech
 
 QR Code Generator for JavaScript (qrcode-generator 2.0.4) — https://github.com/kazuhikoarase/qrcode-generator
-Arquivo: web/qrcode.js
+Arquivo: emulator/web/qrcode.js
 
 MIT License
 
