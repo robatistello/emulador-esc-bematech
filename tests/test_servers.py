@@ -27,7 +27,7 @@ class ServerTests(unittest.TestCase):
 
         for server in (self.tcp, self.web):
             # O intervalo curto faz o shutdown de cada teste levar milissegundos, não meio segundo.
-            threading.Thread(target=server.serve_forever, kwargs=dict(poll_interval=0.05), daemon=True).start()
+            threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
             self.addCleanup(server.server_close)
             self.addCleanup(server.shutdown)
 
@@ -130,10 +130,12 @@ class ServerTests(unittest.TestCase):
         self.assertNotIn("Primeiro", message)
 
     def test_idle_connection_is_saved_as_idle(self):
-        with mock.patch("emulator.servers.IDLE_SECONDS", 0.6):
-            with socket.create_connection(self.tcp.server_address, timeout=3) as client:
-                client.sendall(b"Sem corte\n")
-                self.assertEqual(client.recv(1), b"")
+        with (
+            mock.patch("emulator.servers.IDLE_SECONDS", 0.6),
+            socket.create_connection(self.tcp.server_address, timeout=3) as client,
+        ):
+            client.sendall(b"Sem corte\n")
+            self.assertEqual(client.recv(1), b"")
 
         self.assertEqual(self.history.list()[0]["reason"], "idle")
 
@@ -141,9 +143,12 @@ class ServerTests(unittest.TestCase):
 class PortTests(unittest.TestCase):
     def test_second_instance_cannot_share_ports(self):
         for server_class, handler in ((PrinterServer, PrinterHandler), (WebServer, web_handler(None))):
-            with self.subTest(server=server_class.__name__), server_class(("127.0.0.1", 0), handler) as first:
-                with self.assertRaises(OSError):
-                    server_class(first.server_address, handler).server_close()
+            with (
+                self.subTest(server=server_class.__name__),
+                server_class(("127.0.0.1", 0), handler) as first,
+                self.assertRaises(OSError),
+            ):
+                server_class(first.server_address, handler).server_close()
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 import base64
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 TEXT = re.compile(rb"[^\x00-\x1f]+")
 
@@ -110,14 +110,14 @@ class Parser:
             self.newline()
 
         self.lines.append(
-            dict(
-                type="qr",
-                align=self.align,
-                spans=[],
-                module_size=module or 4,
-                error_level="LMQH"[error],
-                data_base64=base64.b64encode(data).decode("ascii"),
-            )
+            {
+                "type": "qr",
+                "align": self.align,
+                "spans": [],
+                "module_size": module or 4,
+                "error_level": "LMQH"[error],
+                "data_base64": base64.b64encode(data).decode("ascii"),
+            }
         )
 
     def flush_text(self):
@@ -125,21 +125,21 @@ class Parser:
             return
 
         self.spans.append(
-            dict(
-                text=self.text.decode(self.encoding, errors="replace"),
-                bold=self.bold,
-                italic=self.italic,
-                underline=self.underline,
-                width=self.width,
-                height=self.height,
-                font=self.font,
-            )
+            {
+                "text": self.text.decode(self.encoding, errors="replace"),
+                "bold": self.bold,
+                "italic": self.italic,
+                "underline": self.underline,
+                "width": self.width,
+                "height": self.height,
+                "font": self.font,
+            }
         )
         self.text.clear()
 
     def newline(self):
         self.flush_text()
-        self.lines.append(dict(align=self.align, spans=self.spans, spacing=self.line_spacing))
+        self.lines.append({"align": self.align, "spans": self.spans, "spacing": self.line_spacing})
         self.spans = []
 
     def has_content(self):
@@ -159,15 +159,15 @@ class Parser:
         # corte; sem texto, QR, gaveta ou aviso, isso não é uma nova impressão.
         if self.has_content():
             self.save(
-                dict(
-                    protocol="bematech",
-                    created_at=datetime.now(timezone.utc).isoformat(),
-                    reason=reason,
-                    lines=self.lines,
-                    events=self.events,
-                    warnings=sorted(self.warnings),
-                    raw_base64=base64.b64encode(self.raw).decode("ascii"),
-                )
+                {
+                    "protocol": "bematech",
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "reason": reason,
+                    "lines": self.lines,
+                    "events": self.events,
+                    "warnings": sorted(self.warnings),
+                    "raw_base64": base64.b64encode(self.raw).decode("ascii"),
+                }
             )
 
         self.raw.clear()
@@ -302,7 +302,7 @@ class Parser:
                 self.warnings.add(f"Página de código {argument} não suportada; usado CP850.")
         elif command in (ESC_DRAWER_1, ESC_DRAWER_2):
             drawer = 1 if command == ESC_DRAWER_1 else 2
-            self.events.append(dict(type="drawer", drawer=drawer, pulse_ms=argument))
+            self.events.append({"type": "drawer", "drawer": drawer, "pulse_ms": argument})
         elif command == ESC_BEEP and packet[2] == 0x41:
             pass  # Beep: sem dispositivo físico.
         elif command == ESC_IMAGE:
@@ -323,7 +323,7 @@ class Parser:
         if command == GS_BARCODE and packet[2] == QR_SYMBOLOGY:
             self.print_qr(packet)
         elif packet == SELECT_ESCBEMA or command in GS_BARCODE_SETTINGS:
-            pass  # Seleção EscBema e parâmetros de código de barras.
+            pass  # Não mudam o que é desenhado.
         elif command == GS_BARCODE:
             self.warnings.add("Código de barras não renderizado.")
         else:

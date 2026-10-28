@@ -12,7 +12,8 @@ Funciona com qualquer sistema que imprima nesse padrão; no ACBr, corresponde ao
 ## Recursos
 
 - **Prévia do papel:** cada impressão é desenhada em 48 colunas na fonte normal e 64 na condensada, com negrito, itálico, sublinhado, largura e altura dupla, alinhamento e QR code nativo. Serve para conferir o layout durante o desenvolvimento, mas é uma aproximação: fontes e espaçamentos podem diferir em detalhes, e imagens, logotipos e códigos de barras aparecem só como aviso.
-- **Histórico persistente:** as impressões ficam salvas entre reinicializações, com busca, download como imagem PNG ou com os bytes originais.
+- **Histórico persistente:** as 1000 impressões mais recentes ficam salvas entre reinicializações, com busca, download como imagem PNG ou com os bytes originais.
+- **Registro de eventos:** conexões e erros ficam registrados, sem o conteúdo das impressões, para ajudar a investigar problemas.
 - **Avisos de nova impressão:** com a aba em segundo plano, o título conta as impressões novas e o ícone ganha um ponto; a página pode mostrar cada impressão nova assim que chega.
 - **Gaveta registrada:** aberturas de gaveta aparecem no histórico com o número da gaveta e a duração do pulso.
 - **Sem instalação:** um executável único para Windows, na bandeja perto do relógio, e outro para Linux. Pelos fontes, só a biblioteca padrão do Python.

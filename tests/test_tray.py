@@ -84,7 +84,8 @@ class TrayTests(unittest.TestCase):
                         port=tcp.server_address[1],
                         open_browser=lambda url: opened_urls.append(url) or True,
                     )
-            except Exception as error:
+            # Qualquer erro da bandeja precisa chegar ao teste, que espera em outra thread.
+            except Exception as error:  # noqa: BLE001
                 errors.append(error)
                 ready.set()
 
@@ -101,7 +102,7 @@ class TrayTests(unittest.TestCase):
         with urlopen(shared["url"], timeout=3) as response:
             self.assertEqual(response.status, 200)
 
-        # Ícone e menu renderizados na escala real da tela.
+        # 2 é o modo por monitor: ícone e menu desenhados na escala real da tela.
         self.assertEqual(self.dpi_awareness(self.thread_dpi_context()), 2)
 
         self.assertTrue(PostMessage(hwnd, WM_COMMAND, OPEN_HISTORY, 0))

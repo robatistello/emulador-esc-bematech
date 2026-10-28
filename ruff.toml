@@ -1,1 +1,3 @@
 line-length = 120
+# Os testes importam o tests/support.py pelo nome, como módulo do projeto.
+src = [".", "tests"]

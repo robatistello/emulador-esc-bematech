@@ -8,9 +8,11 @@ Emulador de impressora térmica que recebe comandos **EscBematech** de qualquer 
 py -m emulator --console                         # terminal (impressora 9100, histórico http://127.0.0.1:9101)
 py -m emulator --tray                            # bandeja, mantendo o terminal
 py tools/send_demo.py --qr                       # envia uma impressão de exemplo
+py tools/check.py                                # tudo o que o CI confere; --fix formata antes
 py -m unittest discover -s tests -v              # testes Python
 node tests/test_paper.cjs                        # testes do renderizador e do QR
 uvx ruff@0.17.3 format                           # formata o Python
+uvx ruff@0.17.3 check                            # analisa o Python
 npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs eslint.config.mjs  # formata a página e o teste Node
 npx eslint@10.13.0 emulator/web tests/test_paper.cjs  # analisa o JavaScript
 .\packaging\build.ps1                            # gera outputs\windows\EmuladorEscBematech.exe
@@ -18,12 +20,12 @@ npx eslint@10.13.0 emulator/web tests/test_paper.cjs  # analisa o JavaScript
 py tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe  # abre o executável e confere uma impressão
 ```
 
-Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), os dois formatadores e o ESLint; o CI confere todos.
+Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), os dois formatadores, o `ruff check` e o ESLint; o CI confere todos, e o `tools/check.py` roda os seis de uma vez.
 
 ## Arquitetura
 
-- `emulator/escpos.py` — `Parser` incremental: enquadra os bytes em comandos (aceita pacotes TCP fragmentados), mantém o estado de estilo e chama `save(job)` a cada corte (`ESC w`/`ESC m`) ou ao fechar a conexão. `handle_esc`, `handle_gs` e o tratamento de FS interpretam cada família. O job é um dict com `lines`, `events`, `warnings` e `raw_base64`.
 - `emulator/__init__.py` — só a constante `VERSION`.
+- `emulator/escpos.py` — `Parser` incremental: enquadra os bytes em comandos (aceita pacotes TCP fragmentados), mantém o estado de estilo e chama `save(job)` a cada corte (`ESC w`/`ESC m`) ou ao fechar a conexão. `handle_esc`, `handle_gs` e o tratamento de FS interpretam cada família. O job é um dict com `lines`, `events`, `warnings` e `raw_base64`.
 - `emulator/history.py` — histórico SQLite (`History`, tabela `jobs`), que guarda as `DEFAULT_KEEP` impressões mais recentes ou o `--keep`, com o resumo de cada uma em colunas para a lista.
 - `emulator/servers.py` — servidor TCP (`PrinterServer`, `PrinterHandler`), servidor HTTP (`WebServer`, `web_handler`) e `running_servers`, que sobe os dois juntos. Rotas: `/`, `/style.css`, `/app.js`, `/paper.js`, `/qrcode.js`, as fontes em `/fonts/`, `GET /api/jobs`, `GET /api/jobs/<id>` e `DELETE /api/jobs`. `GET /api/jobs` envia `ETag` (número e data da última impressão) e responde 304 quando a lista não mudou.
 - `emulator/cli.py` — linha de comando (`build_argument_parser`, `serve`, `main`): opções, registro, modo bandeja ou terminal e mensagens de erro, como porta ocupada ou banco sem permissão.
@@ -36,7 +38,7 @@ Rode sempre os dois conjuntos de testes (o Node não faz parte do `unittest`), o
 - `emulator/web/fonts/` — Roboto (interface) e Roboto Mono (papel), servidas em `/fonts/`; veja "Fontes da página" no CONTRIBUTING.md.
 - `emulator/web/qrcode.js` — biblioteca de terceiros (qrcode-generator 2.0.4, MIT). Não edite; para atualizar, substitua o arquivo inteiro e ajuste `THIRD-PARTY-NOTICES.txt`.
 - `packaging/` — `build.ps1`, `build.sh`, `requirements-build.txt` e os LEIA-ME de cada pacote, que viram `LEIA-ME.txt` no zip e no tar.gz. `notices.py` monta o `THIRD-PARTY-NOTICES.txt` do executável (o da raiz mais as licenças do Python embutido, de `packaging/licenses` e, no Windows, do `LICENSE.txt` do próprio Python); veja "Licenças nos executáveis" no CONTRIBUTING.md.
-- `tools/send_demo.py` — impressão de exemplo, também usada pelos testes (`build_demo`, `qr_command`); `tools/smoke_test.py` — teste do executável compilado, rodado pelo release nos dois sistemas.
+- `tools/send_demo.py` — impressão de exemplo, também usada pelos testes (`build_demo`, `qr_command`); `tools/check.py` — roda os testes, a formatação e a análise como o CI, com as mesmas versões do `tests.yml`; `tools/smoke_test.py` — teste do executável compilado, rodado pelo release nos dois sistemas.
 - `tests/` — um arquivo por módulo: `test_escpos.py`, `test_history.py`, `test_servers.py`, `test_lifecycle.py` (linha de comando, portas, encerramento), `test_logs.py` (destino e rotação do registro), `test_tray.py` (bandeja real, só no Windows) e `test_paper.cjs` (renderizador, com `node:test`). `support.py` tem o `parse` (bytes entregues um a um) e o `line_text` usados por vários deles.
 - `.github/workflows/` — `tests.yml` roda os testes no Windows e no Linux com o Python 3.14 (o mínimo suportado e o dos executáveis), e a formatação e o ESLint uma vez, a cada push e pull request; `release.yml` publica a Release a cada tag `v*`.
 

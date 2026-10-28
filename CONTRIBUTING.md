@@ -12,9 +12,9 @@ emulator/            código do programa
   __main__.py        ponto de entrada (python -m emulator e o executável)
   cli.py             linha de comando: opções, bandeja ou terminal e mensagens de erro
   escpos.py          Parser incremental dos comandos EscBematech
-  history.py         histórico das impressões em SQLite
-  servers.py         servidor TCP da impressora e servidor HTTP do histórico
+  history.py         histórico das impressões em SQLite, limitado às mais recentes
   logs.py            registro de eventos: no terminal ou em arquivo com rotação, na bandeja
+  servers.py         servidor TCP da impressora e servidor HTTP do histórico
   tray.py            ícone da bandeja do Windows, pela API Win32 com ctypes
   printer.ico        ícone da bandeja e do .exe
   web/               página do histórico (HTML, CSS e JavaScript)
@@ -22,7 +22,7 @@ emulator/            código do programa
 packaging/           build dos executáveis, LEIA-ME de cada pacote e avisos de licença
   licenses/          textos de licença das bibliotecas que o Python embute no executável
 tests/               testes Python (unittest, um arquivo por módulo) e do renderizador (Node)
-tools/               send_demo.py (impressão de exemplo) e smoke_test.py (teste do executável)
+tools/               send_demo.py (impressão de exemplo), check.py (verificações do CI) e smoke_test.py (teste do executável)
 docs/                imagens do README
 .github/workflows/   testes a cada push e release a cada tag
 ```
@@ -54,14 +54,21 @@ python -m emulator --console
 python tools/send_demo.py --qr
 ```
 
-Rode sempre os dois conjuntos de testes; o do renderizador não faz parte do `unittest`:
+Antes de enviar uma mudança, rode tudo o que o CI confere com um comando só: os testes Python e do renderizador, a formatação e a análise do código. Com `--fix`, ele formata e aplica as correções automáticas antes de conferir. No fim, lista os passos que falharam:
+
+```bash
+python tools/check.py
+python tools/check.py --fix
+```
+
+O script usa o Python, o Node e o uv da seção [Ambiente](#ambiente). Para rodar só os testes, lembre que são dois conjuntos, porque o do renderizador não faz parte do `unittest`:
 
 ```bash
 python -m unittest discover -s tests -v
 node tests/test_paper.cjs
 ```
 
-Os testes Python cobrem o parser (com os bytes entregues um a um, como o pior caso de fragmentação TCP), o histórico, os servidores TCP e HTTP, a linha de comando e o encerramento com impressão pendente. No Windows, também criam por alguns instantes um ícone real na bandeja; esse teste é pulado no GitHub Actions, que não tem área de trabalho interativa.
+Os testes Python cobrem o parser (com os bytes entregues um a um, como o pior caso de fragmentação TCP), o histórico e o seu limite, os servidores TCP e HTTP, o registro e a rotação do arquivo, a linha de comando e o encerramento com impressão pendente. No Windows, também criam por alguns instantes um ícone real na bandeja; esse teste é pulado no GitHub Actions, que não tem área de trabalho interativa.
 
 ## Padrão de escrita
 
@@ -84,7 +91,7 @@ A Roboto Mono não tem os desenhos de caixa e blocos do CP437 e do CP850 (`═ �
 
 ## Formatação
 
-O código segue dois formatadores, com 120 colunas nos dois. O workflow de testes confere a formatação e falha se algum arquivo estiver fora do padrão.
+O código segue dois formatadores, com 120 colunas nos dois. O workflow de testes confere a formatação e a análise descrita abaixo, e falha se algum arquivo estiver fora do padrão.
 
 | Arquivos | Ferramenta | Configuração |
 |---|---|---|
@@ -100,9 +107,10 @@ npx prettier@3.9.10 --write emulator/web tests/test_paper.cjs eslint.config.mjs
 
 Para só conferir, como o CI, troque `format` por `format --check` e `--write` por `--check`. Sem o uv, o Ruff também instala pelo pip: `python -m pip install ruff==0.17.3` e depois `python -m ruff format`.
 
-Além da formatação, o JavaScript passa pelo [ESLint](https://eslint.org/), que aponta erros que o Prettier não vê, como variável não declarada ou não usada, `var` e comparação com `==`. As regras ficam em `eslint.config.mjs`, escolhidas uma a uma para o ESLint rodar pelo `npx`, sem `package.json`:
+Além da formatação, o código passa por análise, que aponta o que o formatador não vê. No Python, o `ruff check` usa as regras padrão do Ruff: import não usado, nome indefinido, `dict()` que pode ser literal, `with` aninhado, nomes antigos da biblioteca padrão. Quando uma regra não se aplica a um trecho, como um arquivo que precisa ficar aberto, a linha leva `# noqa: REGRA` e um comentário com o motivo. No JavaScript, o [ESLint](https://eslint.org/) aponta variável não declarada ou não usada, `var` e comparação com `==`; as regras ficam em `eslint.config.mjs`, escolhidas uma a uma para ele rodar pelo `npx`, sem `package.json`:
 
 ```bash
+uvx ruff@0.17.3 check
 npx eslint@10.13.0 emulator/web tests/test_paper.cjs
 ```
 
@@ -128,7 +136,7 @@ O script gera `outputs/linux/EmuladorEscBematech` com o Python do uv, que é com
 
 ### Licenças nos executáveis
 
-O repositório só contém código de terceiros no `qrcode.js`, coberto pelo `THIRD-PARTY-NOTICES.txt` da raiz. Os executáveis, porém, levam o interpretador Python e bibliotecas nativas (OpenSSL, libffi, SQLite, mpdecimal e outras), cujas licenças pedem que o texto acompanhe o binário. Por isso os dois scripts de build rodam o `packaging/notices.py`, que monta um `THIRD-PARTY-NOTICES.txt` completo: o da raiz mais as licenças do Python embutido. Esse arquivo vai dentro do executável, para o `--licenses`, e ao lado dele no pacote.
+Os únicos arquivos de terceiros do repositório são o `qrcode.js` e as fontes Roboto e Roboto Mono, cobertos pelo `THIRD-PARTY-NOTICES.txt` da raiz. Os executáveis, porém, levam o interpretador Python e bibliotecas nativas (OpenSSL, libffi, SQLite, mpdecimal e outras), cujas licenças pedem que o texto acompanhe o binário. Por isso os dois scripts de build rodam o `packaging/notices.py`, que monta um `THIRD-PARTY-NOTICES.txt` completo: o da raiz mais as licenças do Python embutido. Esse arquivo vai dentro do executável, para o `--licenses`, e ao lado dele no pacote.
 
 - **Windows:** usa o `LICENSE.txt` que o instalador do Python já traz (Python, condições da Microsoft, bzip2, libffi, zstd e OpenSSL) e completa com os textos de `packaging/licenses` para mpdecimal, zlib-ng, liblzma e SQLite.
 - **Linux:** usa os textos de `packaging/licenses`, tirados do pacote completo do [python-build-standalone](https://github.com/astral-sh/python-build-standalone) (release `20261013`), que é de onde vem o Python do uv. A lista segue o `PYTHON.json` desse pacote: só entram as bibliotecas ligadas dentro da `libpython`, que é o que o PyInstaller empacota.
@@ -159,7 +167,7 @@ O workflow de release confere se a tag bate com `VERSION`, roda os testes, compi
 
 ## Dependências do desenvolvimento
 
-O Dependabot (`.github/dependabot.yml`) abre um pull request por mês quando há versão nova das actions dos workflows ou do PyInstaller (`packaging/requirements-build.txt`). As versões do Ruff, do Prettier e do ESLint ficam escritas nos comandos do `tests.yml`, deste guia e do CLAUDE.md, e o Dependabot não as acompanha: ao atualizar uma delas, troque em todos esses lugares.
+O Dependabot (`.github/dependabot.yml`) abre um pull request por mês quando há versão nova das actions dos workflows ou do PyInstaller (`packaging/requirements-build.txt`). As versões do Ruff, do Prettier e do ESLint ficam escritas nos comandos do `tests.yml`, do `tools/check.py`, deste guia e do CLAUDE.md, e o Dependabot não as acompanha: ao atualizar uma delas, troque em todos esses lugares.
 
 ## Commits
 

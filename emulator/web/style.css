@@ -23,6 +23,7 @@
   --text: #172337;
   --muted: #66748a;
   --header-muted: #b9c9dd;
+  --header-warn: #f0b35a;
   --accent: #2165d8;
   --active: #edf4ff;
   --warn: #96500a;
@@ -214,8 +215,13 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px 16px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.toolbar h2 {
+  margin: 0;
 }
 
 a {
@@ -224,7 +230,9 @@ a {
 
 .actions {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  white-space: nowrap;
 }
 
 .link {
@@ -274,10 +282,8 @@ a {
   white-space: pre-line;
 }
 
-#status {
-  font-size: 12px;
-  color: var(--header-muted);
-  margin-top: 8px;
+#status.problem {
+  color: var(--header-warn);
 }
 
 #meta {
@@ -328,7 +334,7 @@ footer a {
   cursor: default;
 }
 
-@media (max-width: 750px) {
+@media (max-width: 880px) {
   main {
     grid-template-columns: 1fr;
   }

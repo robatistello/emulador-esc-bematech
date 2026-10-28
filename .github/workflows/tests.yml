@@ -38,10 +38,11 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Formatação do Python
+      - name: Formatação e análise do Python
         run: |
           pip install ruff==0.17.3
           ruff format --check
+          ruff check
 
       - name: Formatação da página
         run: npx --yes prettier@3.9.10 --check emulator/web tests/test_paper.cjs eslint.config.mjs

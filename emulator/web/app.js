@@ -32,6 +32,11 @@ function iconUrl(dot) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
+function showStatus(message, problem = false) {
+  byId('status').textContent = message;
+  byId('status').classList.toggle('problem', problem);
+}
+
 function updateUnread() {
   const unread = lastSeen === null ? 0 : jobs.filter((job) => job.id > lastSeen).length;
 
@@ -137,7 +142,7 @@ async function show(id, loaded) {
     byId('download').download = fileName(job, 'bin');
     byId('download').hidden = false;
   } catch (error) {
-    byId('status').textContent = error.message;
+    showStatus(error.message, true);
   }
 }
 
@@ -240,7 +245,7 @@ async function refresh() {
         listed = true;
       }
 
-      byId('status').textContent = 'Conectado · atualização automática a cada 2 segundos';
+      showStatus('Conectado');
 
       if (selected === null && jobs.length) {
         await show(jobs[0].id);
@@ -252,7 +257,7 @@ async function refresh() {
       }
     }
   } catch {
-    byId('status').textContent = 'Servidor indisponível. Tentando reconectar…';
+    showStatus('Servidor indisponível. Tentando reconectar…', true);
   }
 
   setTimeout(refresh, 2000);
@@ -298,9 +303,9 @@ async function clearHistory() {
     trackUnread();
 
     resetViewer();
-    byId('status').textContent = 'Histórico apagado.';
+    showStatus('Histórico apagado.');
   } catch (error) {
-    byId('status').textContent = error.message;
+    showStatus(error.message, true);
   } finally {
     clearing = false;
     renderList();
@@ -318,7 +323,7 @@ async function downloadImage() {
 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    byId('status').textContent = error.message;
+    showStatus(error.message, true);
   }
 }
 
@@ -347,7 +352,7 @@ function toggleFollow() {
 
   if (byId('follow').checked) {
     followNewest(0).catch((error) => {
-      byId('status').textContent = error.message;
+      showStatus(error.message, true);
     });
   }
 }

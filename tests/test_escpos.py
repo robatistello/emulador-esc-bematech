@@ -139,8 +139,8 @@ class ParserTests(unittest.TestCase):
     def test_drawer_events_fragmented_and_separated_by_cuts(self):
         first, second = parse(b"\x1bv\xc8Texto\n\x1bw\x1b\x80\x64\x1bm")
 
-        self.assertEqual(first["events"], [dict(type="drawer", drawer=1, pulse_ms=200)])
-        self.assertEqual(second["events"], [dict(type="drawer", drawer=2, pulse_ms=100)])
+        self.assertEqual(first["events"], [{"type": "drawer", "drawer": 1, "pulse_ms": 200}])
+        self.assertEqual(second["events"], [{"type": "drawer", "drawer": 2, "pulse_ms": 100}])
         self.assertEqual(line_text(first["lines"][0]), "Texto")
         self.assertEqual(first["warnings"], [])
 

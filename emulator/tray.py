@@ -202,9 +202,10 @@ def ensure_console(own_window=False):
     # o modo console não encerra pelo teclado.
     SetConsoleCtrlHandler(None, False)
 
-    sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
-    sys.stderr = open("CONOUT$", "w", encoding="utf-8", buffering=1)
-    sys.stdin = open("CONIN$", "r", encoding="utf-8")
+    # Os arquivos do console substituem a saída padrão e ficam abertos até o fim do processo.
+    sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)  # noqa: SIM115
+    sys.stderr = open("CONOUT$", "w", encoding="utf-8", buffering=1)  # noqa: SIM115
+    sys.stdin = open("CONIN$", "r", encoding="utf-8")  # noqa: SIM115
 
     if not attached:
         atexit.register(input, "\nPressione Enter para fechar.")
@@ -305,7 +306,9 @@ def run_tray(url, port=None, open_browser=None):
                 return 0
 
             return DefWindowProc(hwnd, message, wparam, lparam)
-        except Exception as error:
+        # Uma exceção não atravessa o callback chamado pelo Windows; ela é guardada
+        # e relançada quando o laço de mensagens termina.
+        except Exception as error:  # noqa: BLE001
             callback_errors.append(error)
             PostQuitMessage(1)
             return 0

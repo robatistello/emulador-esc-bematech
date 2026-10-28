@@ -27,6 +27,7 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 IDLE_SECONDS = 60
 RECEIVE_TIMEOUT_SECONDS = 0.5
 MAX_CONNECTION_BYTES = 10 * 1024 * 1024
+END_REASONS = {"disconnect": "conexão encerrada", "idle": f"{IDLE_SECONDS} segundos sem dados"}
 
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -40,8 +41,6 @@ STATIC = {
 
 
 class PrinterHandler(socketserver.BaseRequestHandler):
-    END_REASONS = {"disconnect": "conexão encerrada", "idle": f"{IDLE_SECONDS} segundos sem dados"}
-
     def setup(self):
         self.client = self.client_address[0]
         self.received = 0
@@ -64,7 +63,7 @@ class PrinterHandler(socketserver.BaseRequestHandler):
             logger.info(
                 "Conexão de %s finalizada por %s: %d bytes, impressões salvas: %d.",
                 self.client,
-                self.END_REASONS[reason],
+                END_REASONS[reason],
                 self.received,
                 self.saved,
             )
@@ -78,7 +77,7 @@ class PrinterHandler(socketserver.BaseRequestHandler):
         while not self.server.stopping:
             try:
                 data = self.request.recv(4096)
-            except socket.timeout:
+            except TimeoutError:
                 if time.monotonic() - last_received >= IDLE_SECONDS:
                     return "idle"
                 continue
@@ -121,6 +120,7 @@ class ExclusivePortMixin:
 
 
 class PrinterServer(ExclusivePortMixin, socketserver.ThreadingTCPServer):
+    # Ao fechar, o servidor espera cada conexão aberta gravar a impressão pendente.
     daemon_threads = False
 
     def __init__(self, *args, **kwargs):
@@ -207,7 +207,7 @@ def web_handler(history):
                 self.send_error(403)
                 return
 
-            self.send_json(dict(deleted=history.clear()))
+            self.send_json({"deleted": history.clear()})
 
         def do_GET(self):
             path = self.path.split("?", 1)[0]
@@ -287,5 +287,3 @@ def running_servers(config):
                 web.shutdown()
                 for thread in threads:
                     thread.join()
-
-        # O contexto TCP espera os handlers gravarem as impressões pendentes.

@@ -59,7 +59,8 @@ def stop(process):
     if sys.platform == "win32":
         # O .exe de arquivo único é um lançador que abre o Python como processo
         # filho; encerrar só o lançador deixaria o filho com as portas abertas.
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True)
+        # Sem check: o processo pode já ter saído, e o wait abaixo confere o fim.
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, check=False)
     else:
         process.terminate()
 
@@ -68,7 +69,8 @@ def stop(process):
 
 def check_version(executable, expected):
     # Com a saída redirecionada, o .exe sem console recebe stdout e não abre janela própria.
-    output = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=60).stdout
+    result = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=60, check=False)
+    output = result.stdout
 
     if expected not in output:
         raise SystemExit(f"--version mostrou {output.strip()!r}; esperado {expected}.")

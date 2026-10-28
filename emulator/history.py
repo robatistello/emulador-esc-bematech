@@ -10,7 +10,7 @@ DEFAULT_KEEP = 1000
 
 def job_events(job):
     return [
-        dict(event, description=f"Abertura da gaveta {event['drawer']} · pulso de {event['pulse_ms']} ms")
+        {**event, "description": f"Abertura da gaveta {event['drawer']} · pulso de {event['pulse_ms']} ms"}
         for event in job["events"]
         if event["type"] == "drawer"
     ]
@@ -84,7 +84,7 @@ class History:
             rows = connection.execute("SELECT id, created_at, reason, preview FROM jobs ORDER BY id DESC").fetchall()
 
         return [
-            dict(id=job_id, created_at=created_at, reason=reason, preview=preview)
+            {"id": job_id, "created_at": created_at, "reason": reason, "preview": preview}
             for job_id, created_at, reason, preview in rows
         ]
 
@@ -97,4 +97,4 @@ class History:
 
         job = json.loads(row[0])
         job["events"] = job_events(job)
-        return dict(id=job_id, **job)
+        return {"id": job_id, **job}

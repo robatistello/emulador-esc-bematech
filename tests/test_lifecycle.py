@@ -76,9 +76,10 @@ class LifecycleTests(unittest.TestCase):
             printer_port = probe.getsockname()[1]
             probe.close()
 
-            with self.assertRaises(OSError):
-                with running_servers(server_config(self.folder, printer_port, occupied.getsockname()[1])):
-                    self.fail("A porta HTTP ocupada deveria impedir a inicialização.")
+            occupied_port = occupied.getsockname()[1]
+
+            with self.assertRaises(OSError), running_servers(server_config(self.folder, printer_port, occupied_port)):
+                self.fail("A porta HTTP ocupada deveria impedir a inicialização.")
 
         with socket.socket() as free:
             free.bind(("127.0.0.1", printer_port))
