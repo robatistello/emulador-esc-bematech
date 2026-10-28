@@ -18,7 +18,7 @@ STATIC_FILES = ("/style.css", "/app.js", "/paper.js", "/qrcode.js")
 
 
 def source_version():
-    source = (ROOT / "server.py").read_text(encoding="utf-8")
+    source = (ROOT / "emulator" / "server.py").read_text(encoding="utf-8")
     return re.search(r'^VERSION = "(.+)"$', source, re.MULTILINE).group(1)
 
 

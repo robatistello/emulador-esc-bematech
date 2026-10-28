@@ -17,15 +17,19 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 
-from escpos import Parser
+from emulator.escpos import Parser
 
 VERSION = "1.1.0"
 SERVER_NAME = "EmuladorEscBematech"
 
-ROOT = Path(__file__).resolve().parent
+PACKAGE_DIR = Path(__file__).resolve().parent
+WEB_DIR = PACKAGE_DIR / "web"
+# Pelos fontes, a pasta acima do pacote é a raiz do projeto; no executável, é a
+# pasta temporária onde o PyInstaller extrai os recursos, com a mesma disposição.
+NOTICES_PATH = PACKAGE_DIR.parent / "THIRD-PARTY-NOTICES.txt"
 # Os recursos do .exe ficam em uma pasta temporária; o histórico precisa
 # permanecer ao lado do executável para sobreviver a cada nova execução.
-DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT
+DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else PACKAGE_DIR.parent
 
 IDLE_SECONDS = 60
 RECEIVE_TIMEOUT_SECONDS = 0.5
@@ -277,7 +281,7 @@ def web_handler(history):
                 self.send_error(404)
 
         def send_static(self, name, content_type):
-            body = (ROOT / "web" / name).read_bytes().replace(b"{{VERSION}}", VERSION.encode())
+            body = (WEB_DIR / name).read_bytes().replace(b"{{VERSION}}", VERSION.encode())
             self.send_body(body, content_type)
 
         def send_job_list(self):
@@ -363,7 +367,7 @@ def port_number(value):
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if sys.stderr is None and sys.platform == "win32":
-            from tray import show_error
+            from emulator.tray import show_error
 
             show_error(f"{message}\n\nUse --help para ver as opções.")
             raise SystemExit(2)
@@ -414,7 +418,7 @@ def serve(config, browser_host):
         url = f"http://{browser_host}:{web.server_port}"
 
         if config.tray:
-            from tray import run_tray
+            from emulator.tray import run_tray
 
             run_tray(url, port=tcp.server_address[1])
             return
@@ -430,7 +434,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
 
     if needs_console(argv):
-        from tray import ensure_console
+        from emulator.tray import ensure_console
 
         # O terminal não espera um programa de janela: o emulador ficaria rodando
         # escondido e sem receber Ctrl+C. Ele ganha uma janela própria.
@@ -440,12 +444,12 @@ def main(argv=None):
     config = parser.parse_args(argv)
 
     if config.licenses:
-        print((ROOT / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
+        print(NOTICES_PATH.read_text(encoding="utf-8"))
         return 0
 
     def fail(message):
         if config.tray and sys.platform == "win32":
-            from tray import show_error
+            from emulator.tray import show_error
 
             show_error(message)
             return 1

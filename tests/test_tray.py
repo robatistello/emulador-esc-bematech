@@ -11,7 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.request import urlopen
 
-from server import running_servers
+from emulator.server import running_servers
 
 
 def wait_until(condition, seconds):
@@ -27,7 +27,7 @@ def wait_until(condition, seconds):
 @unittest.skipIf(os.environ.get("GITHUB_ACTIONS"), "GitHub Actions não tem área de trabalho interativa")
 class TrayTests(unittest.TestCase):
     def setUp(self):
-        from tray import api, shell32, user32
+        from emulator.tray import api, shell32, user32
 
         class NotifyIconIdentifier(ctypes.Structure):
             _fields_ = [
@@ -50,7 +50,7 @@ class TrayTests(unittest.TestCase):
         self.dpi_awareness = api(user32, "GetAwarenessFromDpiAwarenessContext", ctypes.c_int, wintypes.HANDLE)
 
     def tray_window(self):
-        from tray import CLASS_PREFIX
+        from emulator.tray import CLASS_PREFIX
 
         return self.find_window(CLASS_PREFIX + str(os.getpid()), None)
 
@@ -59,7 +59,7 @@ class TrayTests(unittest.TestCase):
         return self.get_icon_rect(ctypes.byref(identifier), ctypes.byref(wintypes.RECT())) == 0
 
     def test_native_icon_open_history_and_exit(self):
-        from tray import EXIT, OPEN_HISTORY, WM_CLOSE, WM_COMMAND, PostMessage, run_tray
+        from emulator.tray import EXIT, OPEN_HISTORY, WM_CLOSE, WM_COMMAND, PostMessage, run_tray
 
         opened_urls = []
         errors = []

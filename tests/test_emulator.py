@@ -13,8 +13,8 @@ from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from escpos import Parser
-from server import VERSION, History, PrinterHandler, PrinterServer, WebServer, web_handler
+from emulator.escpos import Parser
+from emulator.server import VERSION, History, PrinterHandler, PrinterServer, WebServer, web_handler
 from tools.send_demo import build_demo, qr_command
 
 
@@ -328,7 +328,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual([(job["id"], job["preview"]) for job in self.get_json("/api/jobs")], [(1, "Novo")])
 
     def test_idle_connection_is_saved_as_idle(self):
-        with mock.patch("server.IDLE_SECONDS", 0.6):
+        with mock.patch("emulator.server.IDLE_SECONDS", 0.6):
             with socket.create_connection(self.tcp.server_address, timeout=3) as client:
                 client.sendall(b"Sem corte\n")
                 self.assertEqual(client.recv(1), b"")

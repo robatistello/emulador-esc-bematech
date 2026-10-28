@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, test } = require('node:test');
 
-const { layoutPaper, qrMatrix } = require('../web/paper.js');
+const { layoutPaper, qrMatrix } = require('../emulator/web/paper.js');
 
 const span = (text, extra = {}) => ({ text, font: 'A', width: 1, height: 1, ...extra });
 const line = (spans, align = 'left') => ({ spans, align, spacing: 30 });

@@ -22,9 +22,9 @@ jobs:
       - name: Conferir versão
         shell: pwsh
         run: |
-          $version = (Select-String -LiteralPath server.py -Pattern '^VERSION = "(.+)"$').Matches[0].Groups[1].Value
+          $version = (Select-String -LiteralPath emulator/server.py -Pattern '^VERSION = "(.+)"$').Matches[0].Groups[1].Value
           if ("v$version" -ne $env:GITHUB_REF_NAME) {
-            throw "A tag $env:GITHUB_REF_NAME não corresponde a VERSION = $version no server.py."
+            throw "A tag $env:GITHUB_REF_NAME não corresponde a VERSION = $version no emulator/server.py."
           }
 
       - name: Testes
@@ -36,7 +36,7 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: .\build.ps1 -Python python
+        run: .\packaging\build.ps1 -Python python
 
       - name: Testar o executável
         run: python tools/smoke_test.py outputs/windows/EmuladorEscBematech.exe
@@ -69,7 +69,7 @@ jobs:
           node tests/test_paper.cjs
 
       - name: Build
-        run: bash build.sh
+        run: bash packaging/build.sh
 
       - name: Testar o executável
         run: python3 tools/smoke_test.py outputs/linux/EmuladorEscBematech

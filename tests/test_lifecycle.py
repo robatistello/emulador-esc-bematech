@@ -7,7 +7,7 @@ from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
-from server import VERSION, History, main, running_servers
+from emulator.server import VERSION, History, main, running_servers
 
 
 def server_config(folder, port=0, web_port=0):

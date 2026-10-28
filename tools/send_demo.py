@@ -48,7 +48,7 @@ def build_demo(qr=False):
     ]
 
     if qr:
-        parts.append(qr_command(b"https://example.com/emulador-escbematech"))
+        parts.append(qr_command(b"https://github.com/robatistello/emulador-esc-bematech"))
 
     parts.append(b"\n\n\n" + CUT)
     return b"".join(parts)

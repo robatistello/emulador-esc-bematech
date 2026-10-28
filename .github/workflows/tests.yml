@@ -36,4 +36,4 @@ jobs:
 
       - name: Formatação da página
         if: runner.os == 'Linux'
-        run: npx --yes prettier@3.9.10 --check web tests/test_paper.cjs
+        run: npx --yes prettier@3.9.10 --check emulator/web tests/test_paper.cjs
