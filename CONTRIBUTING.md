@@ -26,7 +26,7 @@ O emulador usa só a biblioteca padrão do Python. As ferramentas de desenvolvim
 
 ## Ambiente
 
-- **Python 3.10 ou superior.** O CI testa as duas pontas: o 3.10, mínimo prometido, e o 3.14, que vai dentro dos executáveis. No Windows, use o lançador `py`, que acompanha o instalador do python.org e não depende do atalho da Microsoft Store que o Windows coloca no PATH.
+- **Python 3.14 ou superior**, a mesma versão que vai dentro dos executáveis e que o CI testa. No Windows, use o lançador `py`, que acompanha o instalador do python.org e não depende do atalho da Microsoft Store que o Windows coloca no PATH.
 - **[Node.js](https://nodejs.org/) LTS**, para os testes do renderizador e o Prettier.
 - **[uv](https://docs.astral.sh/uv/)**, para o Ruff e o build Linux. No Windows, pelo PowerShell:
 

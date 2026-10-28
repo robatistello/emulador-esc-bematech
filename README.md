@@ -90,10 +90,16 @@ Não são desenhados, e geram aviso: imagens `ESC *`, logos `FS p` e códigos de
 
 ## Executar pelos fontes
 
-Com Python 3.10 ou superior, sem dependências a instalar, na pasta do projeto:
+Com Python 3.14 ou superior, sem dependências a instalar, na pasta do projeto:
 
 ```bash
 python -m emulator
+```
+
+Se o sistema tiver um Python mais antigo, como no Raspberry Pi OS, Debian ou Ubuntu, o [uv](https://docs.astral.sh/uv/) baixa o 3.14 só para o emulador, sem mexer no Python do sistema:
+
+```bash
+uv run --no-project --python 3.14 python -m emulator
 ```
 
 No Windows, prefira o lançador `py`, que não depende do atalho da Microsoft Store: `py -m emulator` no terminal, `py -m emulator --tray` para a bandeja mantendo o terminal, ou `pyw -m emulator --tray` para a bandeja sem terminal. Para enviar uma impressão de exemplo, em outro terminal:
