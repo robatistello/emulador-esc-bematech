@@ -7,278 +7,341 @@ import stat
 import tempfile
 import threading
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest import mock
-from contextlib import closing
-from urllib.request import urlopen, Request
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
 from escpos import Parser
+from server import VERSION, History, PrinterHandler, PrinterServer, WebServer, web_handler
 from tools.send_demo import build_demo, qr_command
-from server import VERSION, History, PrinterServer, PrinterHandler, WebServer, web_handler
 
 
-class EmulatorTests(unittest.TestCase):
-    def parse(self, job):
-        saved = []
-        parser = Parser(saved.append)
-        for byte in job:
-            parser.feed(bytes([byte]))
-        parser.close()
-        return saved
+def parse(data):
+    """Entrega os bytes um a um, como o pior caso de fragmentação TCP."""
+    jobs = []
+    parser = Parser(jobs.append)
 
+    for byte in data:
+        parser.feed(bytes([byte]))
+    parser.close()
+
+    return jobs
+
+
+def line_text(line):
+    return "".join(span["text"] for span in line["spans"])
+
+
+class ParserTests(unittest.TestCase):
     def test_demo_native_commands_fragmented(self):
-        job = build_demo(qr=True)
-        printed = self.parse(job)[0]
-        self.assertEqual(printed["warnings"], [])
-        self.assertEqual(printed["protocol"], "bematech")
-        first = printed["lines"][0]
-        self.assertEqual(first["align"], "center")
-        self.assertEqual(first["spans"][0]["text"], "CAFÉ EXEMPLO")
-        self.assertTrue(first["spans"][0]["bold"])
-        self.assertEqual((first["spans"][0]["width"], first["spans"][0]["height"]), (2, 2))
-        self.assertEqual(base64.b64decode(printed["raw_base64"]), job)
-        self.assertEqual(printed["reason"], "cut")
+        data = build_demo(qr=True)
+
+        job = parse(data)[0]
+        title = job["lines"][0]["spans"][0]
+
+        self.assertEqual(job["warnings"], [])
+        self.assertEqual(job["protocol"], "bematech")
+        self.assertEqual(job["reason"], "cut")
+        self.assertEqual(job["lines"][0]["align"], "center")
+        self.assertEqual(title["text"], "CAFÉ EXEMPLO")
+        self.assertTrue(title["bold"])
+        self.assertEqual((title["width"], title["height"]), (2, 2))
+        self.assertEqual(base64.b64decode(job["raw_base64"]), data)
 
     def test_whole_job_matches_fragmented_job(self):
-        job = build_demo(qr=True) + b"\x1bEA\tB\x07C\n\x1bm"
-        parser_output = []
-        parser = Parser(parser_output.append)
-        parser.feed(job)
+        data = build_demo(qr=True) + b"\x1bEA\tB\x07C\n\x1bm"
+
+        whole_jobs = []
+        parser = Parser(whole_jobs.append)
+        parser.feed(data)
         parser.close()
-        for whole, fragmented in zip(parser_output, self.parse(job), strict=True):
-            whole.pop("created_at"), fragmented.pop("created_at")
+
+        for whole, fragmented in zip(whole_jobs, parse(data), strict=True):
+            whole.pop("created_at")
+            fragmented.pop("created_at")
             self.assertEqual(whole, fragmented)
 
     def test_bold_commands_do_not_swallow_first_character(self):
-        spans = self.parse(b"\x1bETitulo\x1bFCorpo\n\x1bw")[0]["lines"][0]["spans"]
-        self.assertEqual([s["text"] for s in spans], ["Titulo", "Corpo"])
-        self.assertEqual([s["bold"] for s in spans], [True, False])
+        spans = parse(b"\x1bETitulo\x1bFCorpo\n\x1bw")[0]["lines"][0]["spans"]
+
+        self.assertEqual([span["text"] for span in spans], ["Titulo", "Corpo"])
+        self.assertEqual([span["bold"] for span in spans], [True, False])
 
     def test_native_fonts_and_independent_size(self):
-        job = b"\x1b4\x1b\x0f\x1b-\x01A\x1b5\x1bH\x1b-\x00B\x1bd\x01C\x1bW\x01D\x1b!\x00E\n"
-        spans = self.parse(job)[0]["lines"][0]["spans"]
-        self.assertEqual([s["text"] for s in spans], list("ABCDE"))
+        data = b"\x1b4\x1b\x0f\x1b-\x01A\x1b5\x1bH\x1b-\x00B\x1bd\x01C\x1bW\x01D\x1b!\x00E\n"
+
+        spans = parse(data)[0]["lines"][0]["spans"]
+
+        self.assertEqual([span["text"] for span in spans], list("ABCDE"))
         self.assertTrue(spans[0]["italic"] and spans[0]["underline"])
         self.assertEqual(spans[0]["font"], "B")
         self.assertFalse(spans[1]["italic"] or spans[1]["underline"])
         self.assertEqual(spans[1]["font"], "A")
-        self.assertEqual([(s["width"], s["height"]) for s in spans[2:]], [(1, 2), (2, 2), (1, 1)])
+        self.assertEqual([(span["width"], span["height"]) for span in spans[2:]], [(1, 2), (2, 2), (1, 1)])
 
-    def test_codepages_and_default_spacing(self):
-        for n, codec in ((2, "cp850"), (3, "cp437"), (4, "cp860"), (8, "utf-8")):
+    def test_code_pages_and_default_spacing(self):
+        for code_page, codec in ((2, "cp850"), (3, "cp437"), (4, "cp860"), (8, "utf-8")):
             with self.subTest(codec=codec):
                 text = "Café açúcar" if codec == "cp437" else "Café ação"
-                printed = self.parse(b"\x1b2\x1bt" + bytes([n]) + (text + "\n").encode(codec))[0]
-                self.assertEqual(printed["warnings"], [])
-                self.assertEqual(printed["lines"][0]["spans"][0]["text"], text)
+
+                job = parse(b"\x1b2\x1bt" + bytes([code_page]) + (text + "\n").encode(codec))[0]
+
+                self.assertEqual(job["warnings"], [])
+                self.assertEqual(line_text(job["lines"][0]), text)
 
     def test_qr_binary_data_is_not_interpreted_as_commands(self):
         payload = b"A\x00\x1d\n\x1b@\xffB"
-        printed = self.parse(qr_command(payload) + b"Texto\n\x1bm")[0]
-        self.assertEqual(printed["warnings"], [])
-        self.assertEqual(base64.b64decode(printed["lines"][0]["data_base64"]), payload)
-        self.assertEqual(printed["lines"][1]["spans"][0]["text"], "Texto")
+
+        job = parse(qr_command(payload) + b"Texto\n\x1bm")[0]
+
+        self.assertEqual(job["warnings"], [])
+        self.assertEqual(base64.b64decode(job["lines"][0]["data_base64"]), payload)
+        self.assertEqual(line_text(job["lines"][1]), "Texto")
 
     def test_qr_levels_default_module_and_alignment(self):
         for error, level in enumerate("LMQH"):
-            qr = self.parse(b"\x1ba\x01Antes" + qr_command(b"https://example.com", error, 0))[0]["lines"][1]
-            self.assertEqual((qr["align"], qr["module_size"], qr["error_level"]), ("center", 4, level))
-            self.assertEqual(base64.b64decode(qr["data_base64"]), b"https://example.com")
+            with self.subTest(level=level):
+                qr = parse(b"\x1ba\x01Antes" + qr_command(b"https://example.com", error, 0))[0]["lines"][1]
+
+                self.assertEqual((qr["align"], qr["module_size"], qr["error_level"]), ("center", 4, level))
+                self.assertEqual(base64.b64decode(qr["data_base64"]), b"https://example.com")
 
     def test_qr_length_high_byte_and_following_text(self):
         payload = b"https://example.com/" + b"a" * 300
-        printed = self.parse(qr_command(payload) + b"Depois\n")[0]
-        self.assertEqual(printed["warnings"], [])
-        self.assertEqual(base64.b64decode(printed["lines"][0]["data_base64"]), payload)
-        self.assertEqual(printed["lines"][1]["spans"][0]["text"], "Depois")
+
+        job = parse(qr_command(payload) + b"Depois\n")[0]
+
+        self.assertEqual(job["warnings"], [])
+        self.assertEqual(base64.b64decode(job["lines"][0]["data_base64"]), payload)
+        self.assertEqual(line_text(job["lines"][1]), "Depois")
 
     def test_invalid_qr_does_not_prevent_text(self):
         for packet in (qr_command(b""), qr_command(b"x", error=4)):
-            printed = self.parse(packet + b"Texto\n")[0]
-            self.assertEqual(printed["lines"][0]["spans"][0]["text"], "Texto")
-            self.assertEqual(len(printed["warnings"]), 1)
+            with self.subTest(packet=packet):
+                job = parse(packet + b"Texto\n")[0]
+
+                self.assertEqual(line_text(job["lines"][0]), "Texto")
+                self.assertEqual(len(job["warnings"]), 1)
 
     def test_non_rendered_binary_blocks_and_physical_commands(self):
-        job = (
+        data = (
             b"\x1b(A\x04\x00\x01\x02\x01\x00\x1bv\x00\x1b\x80\x01"
             b"\x1b*\x21\x01\x00\x1b\x00\x0a\x1cp\x01\x00"
             b"\x1dk\x04ABC\x00\x1dk\x49\x03\x1b\x00\x0aTexto\n"
         )
-        printed = self.parse(job)[0]
-        self.assertEqual(printed["lines"][0]["spans"][0]["text"], "Texto")
-        self.assertEqual(len(printed["warnings"]), 3)
+
+        job = parse(data)[0]
+
+        self.assertEqual(line_text(job["lines"][0]), "Texto")
+        self.assertEqual(len(job["warnings"]), 3)
 
     def test_cut_preserves_printer_state_across_jobs(self):
-        first, second = self.parse(b"\x1bEPrimeiro\n\x1bwSegundo\n\x1bm")
+        first, second = parse(b"\x1bEPrimeiro\n\x1bwSegundo\n\x1bm")
+        reset = parse(b"\x1bE\x1b@Normal\n")[0]
+
         self.assertTrue(second["lines"][0]["spans"][0]["bold"])
         self.assertEqual((first["reason"], second["reason"]), ("cut", "cut"))
-        reset = self.parse(b"\x1bE\x1b@Normal\n")[0]
         self.assertFalse(reset["lines"][0]["spans"][0]["bold"])
 
     def test_incomplete_command_and_stray_gs(self):
-        job = b"A\x1d\n\nB\n\x1dkQ\x01"
-        printed = self.parse(job)[0]
-        self.assertEqual(["".join(s["text"] for s in l["spans"]) for l in printed["lines"]], ["A", "", "B"])
-        self.assertEqual(printed["warnings"], ["Comando incompleto ao encerrar a conexão."])
-        self.assertEqual(base64.b64decode(printed["raw_base64"]), job)
+        data = b"A\x1d\n\nB\n\x1dkQ\x01"
+
+        job = parse(data)[0]
+
+        self.assertEqual([line_text(line) for line in job["lines"]], ["A", "", "B"])
+        self.assertEqual(job["warnings"], ["Comando incompleto ao encerrar a conexão."])
+        self.assertEqual(base64.b64decode(job["raw_base64"]), data)
 
     def test_status_does_not_create_jobs(self):
-        self.assertEqual(self.parse(b"\x10\x04\x01\x1d\xf8\x31"), [])
+        self.assertEqual(parse(b"\x10\x04\x01\x1d\xf8\x31"), [])
 
     def test_bytes_after_cut_do_not_create_empty_job(self):
-        jobs = self.parse(b"Texto\n\x1bw\x1b@\n \n")
-        self.assertEqual([job["reason"] for job in jobs], ["cut"])
-        self.assertEqual(self.parse(b"\x1b@\x1ba\x01\n\n\x1bw"), [])
-        image = self.parse(b"\x1b*\x21\x01\x00abc")
+        self.assertEqual([job["reason"] for job in parse(b"Texto\n\x1bw\x1b@\n \n")], ["cut"])
+        self.assertEqual(parse(b"\x1b@\x1ba\x01\n\n\x1bw"), [])
+
+        image = parse(b"\x1b*\x21\x01\x00abc")
         self.assertEqual(image[0]["warnings"], ["Imagem ESC * não renderizada."])
 
     def test_drawer_events_fragmented_and_separated_by_cuts(self):
-        first, second = self.parse(b"\x1bv\xc8Texto\n\x1bw\x1b\x80\x64\x1bm")
+        first, second = parse(b"\x1bv\xc8Texto\n\x1bw\x1b\x80\x64\x1bm")
+
         self.assertEqual(first["events"], [dict(type="drawer", drawer=1, pulse_ms=200)])
         self.assertEqual(second["events"], [dict(type="drawer", drawer=2, pulse_ms=100)])
-        self.assertEqual(first["lines"][0]["spans"][0]["text"], "Texto")
+        self.assertEqual(line_text(first["lines"][0]), "Texto")
         self.assertEqual(first["warnings"], [])
 
+
+class HistoryTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.path = Path(folder.name) / "history.sqlite3"
+        self.history = History(self.path)
+
     def test_list_version_changes_after_clear_with_same_number(self):
-        with tempfile.TemporaryDirectory() as folder:
-            history = History(Path(folder) / "history.sqlite3")
-            self.assertEqual(history.version(), '"vazio"')
-            history.save(self.parse(b"Primeiro\n")[0])
-            first = history.version()
-            self.assertEqual(history.version(), first)
-            history.clear()
-            history.save(self.parse(b"Outro\n")[0])
-            self.assertTrue(history.version().startswith('"1-'))
-            self.assertNotEqual(history.version(), first)
+        self.assertEqual(self.history.version(), '"empty"')
+
+        self.history.save(parse(b"Primeiro\n")[0])
+        first = self.history.version()
+        self.assertEqual(self.history.version(), first)
+
+        self.history.clear()
+        self.history.save(parse(b"Outro\n")[0])
+        self.assertTrue(self.history.version().startswith('"1-'))
+        self.assertNotEqual(self.history.version(), first)
 
     def test_drawer_preview_and_binary_payload_keep_storage(self):
-        with tempfile.TemporaryDirectory() as folder:
-            history = History(Path(folder) / "history.sqlite3")
-            drawer = self.parse(b"\x1d\xf9\x20\x00\x1b2\x1bt\x02\x1bv\xc8")[0]
-            binary = self.parse(qr_command(b"A\x1bv\xc8B"))[0]
-            for printed in (drawer, binary):
-                history.save(printed)
-            self.assertEqual(history.list()[1]["preview"], "Abertura da gaveta 1 · pulso de 200 ms")
-            self.assertEqual(history.get(1)["events"][0]["drawer"], 1)
-            self.assertEqual(history.get(1)["lines"], [])
-            self.assertEqual(history.get(2)["events"], [])
-            with closing(sqlite3.connect(history.path)) as db:
-                original = json.loads(db.execute("SELECT payload FROM jobs WHERE id=1").fetchone()[0])
-            self.assertEqual(original, drawer)
+        drawer = parse(b"\x1d\xf9\x20\x00\x1b2\x1bt\x02\x1bv\xc8")[0]
+        binary = parse(qr_command(b"A\x1bv\xc8B"))[0]
+
+        self.history.save(drawer)
+        self.history.save(binary)
+
+        self.assertEqual(self.history.list()[1]["preview"], "Abertura da gaveta 1 · pulso de 200 ms")
+        self.assertEqual(self.history.get(1)["events"][0]["drawer"], 1)
+        self.assertEqual(self.history.get(1)["lines"], [])
+        self.assertEqual(self.history.get(2)["events"], [])
+
+        with closing(sqlite3.connect(self.history.path)) as connection:
+            stored = json.loads(connection.execute("SELECT payload FROM jobs WHERE id=1").fetchone()[0])
+        self.assertEqual(stored, drawer)
 
     def test_history_keeps_state_after_cut_and_restart(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "history.sqlite3"
-            parser = Parser(History(path).save)
-            parser.feed(b"\x1bEA\x1bwB\x1bm")
-            parser.close()
-            restored = History(path)
-            self.assertEqual(len(restored.list()), 2)
-            self.assertTrue(restored.get(2)["lines"][0]["spans"][0]["bold"])
+        parser = Parser(self.history.save)
+        parser.feed(b"\x1bEA\x1bwB\x1bm")
+        parser.close()
 
-    def test_idle_connection_is_saved_as_idle(self):
-        with tempfile.TemporaryDirectory() as folder, mock.patch("server.IDLE_SECONDS", 0.6):
-            history = History(Path(folder) / "history.sqlite3")
-            with PrinterServer(("127.0.0.1", 0), PrinterHandler) as tcp:
-                tcp.history = history
-                threading.Thread(target=tcp.serve_forever, daemon=True).start()
-                try:
-                    with socket.create_connection(tcp.server_address, timeout=3) as client:
-                        client.sendall(b"Sem corte\n")
-                        self.assertEqual(client.recv(1), b"")
-                    self.assertEqual(history.list()[0]["reason"], "idle")
-                finally:
-                    tcp.shutdown()
+        restored = History(self.path)
+
+        self.assertEqual(len(restored.list()), 2)
+        self.assertTrue(restored.get(2)["lines"][0]["spans"][0]["bold"])
 
     def test_read_only_database_fails_on_open(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "history.sqlite3"
-            History(path)
-            os.chmod(path, stat.S_IREAD)
-            try:
-                with self.assertRaises(sqlite3.Error):
-                    History(path)
-            finally:
-                os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+        os.chmod(self.path, stat.S_IREAD)
+        self.addCleanup(os.chmod, self.path, stat.S_IREAD | stat.S_IWRITE)
 
+        with self.assertRaises(sqlite3.Error):
+            History(self.path)
+
+
+class ServerTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.history = History(Path(folder.name) / "history.sqlite3")
+
+        self.tcp = PrinterServer(("127.0.0.1", 0), PrinterHandler)
+        self.tcp.history = self.history
+        self.web = WebServer(("127.0.0.1", 0), web_handler(self.history))
+        self.url = f"http://127.0.0.1:{self.web.server_port}"
+
+        for server in (self.tcp, self.web):
+            # O intervalo curto faz o shutdown de cada teste levar milissegundos, não meio segundo.
+            threading.Thread(target=server.serve_forever, kwargs=dict(poll_interval=0.05), daemon=True).start()
+            self.addCleanup(server.server_close)
+            self.addCleanup(server.shutdown)
+
+    def send(self, data):
+        with socket.create_connection(self.tcp.server_address, timeout=3) as client:
+            client.sendall(data)
+            client.shutdown(socket.SHUT_WR)
+            self.assertEqual(client.recv(1), b"", "o servidor deve fechar depois de gravar")
+
+    def request(self, path, method="GET", headers=None):
+        return urlopen(Request(self.url + path, method=method, headers=headers or {}))
+
+    def get_json(self, path, headers=None):
+        with self.request(path, headers=headers) as response:
+            return json.load(response)
+
+    def assert_status(self, status, path, method="GET", headers=None):
+        with self.assertRaises(HTTPError) as error:
+            self.request(path, method, headers)
+
+        self.assertEqual(error.exception.code, status)
+        error.exception.close()
+
+    def test_received_jobs_are_listed_and_served(self):
+        self.send(b"Primeiro\n\x1bwSegundo\n")
+
+        self.assertEqual([job["preview"] for job in self.get_json("/api/jobs")], ["Segundo", "Primeiro"])
+        self.assertEqual(line_text(self.get_json("/api/jobs/1")["lines"][0]), "Primeiro")
+        self.assert_status(404, "/api/jobs/99")
+        self.assert_status(404, "/api/jobs/abc")
+
+    def test_page_and_static_files(self):
+        with self.request("/") as response:
+            page = response.read()
+            self.assertIn(f"EscBematech {VERSION} ·".encode(), page)
+            self.assertNotIn(b"{{VERSION}}", page)
+            self.assertEqual(response.headers["Server"].split()[0], f"EmuladorEscBematech/{VERSION}")
+
+        with self.request("/style.css") as response:
+            self.assertEqual(response.headers["Content-Type"], "text/css; charset=utf-8")
+            self.assertIn(b"--accent", response.read())
+
+        for path, marker in (
+            ("/app.js", b"function refresh"),
+            ("/paper.js", b"layoutPaper"),
+            ("/qrcode.js", b"QR Code"),
+        ):
+            with self.subTest(path=path), self.request(path) as response:
+                self.assertIn(marker, response.read())
+
+    def test_unchanged_list_answers_not_modified(self):
+        self.send(b"Texto\n")
+
+        with self.request("/api/jobs") as response:
+            tag = response.headers["ETag"]
+
+        with self.assertRaises(HTTPError) as unchanged:
+            self.request("/api/jobs", headers={"If-None-Match": tag})
+        self.assertEqual((unchanged.exception.code, unchanged.exception.read()), (304, b""))
+        unchanged.exception.close()
+
+    def test_cross_origin_delete_is_denied(self):
+        self.send(b"Texto\n")
+
+        self.assert_status(403, "/api/jobs", "DELETE", {"Origin": "https://example.com"})
+        self.assertEqual(len(self.history.list()), 1)
+
+    def test_dns_rebinding_is_denied(self):
+        # Página com DNS rebinding: Origin e Host coincidem, mas o nome não é IP.
+        host = f"evil.example:{self.web.server_port}"
+
+        for method in ("GET", "DELETE"):
+            with self.subTest(method=method):
+                self.assert_status(403, "/api/jobs", method, {"Host": host, "Origin": "http://" + host})
+
+        self.assertEqual(self.get_json("/api/jobs", {"Host": f"localhost:{self.web.server_port}"}), [])
+
+    def test_clear_restarts_numbering(self):
+        self.send(b"Primeiro\n\x1bwSegundo\n")
+
+        with self.request("/api/jobs", method="DELETE") as response:
+            self.assertEqual(json.load(response)["deleted"], 2)
+        self.assertEqual(self.history.list(), [])
+
+        self.send(b"Novo\n\x1bw")
+        self.assertEqual([(job["id"], job["preview"]) for job in self.get_json("/api/jobs")], [(1, "Novo")])
+
+    def test_idle_connection_is_saved_as_idle(self):
+        with mock.patch("server.IDLE_SECONDS", 0.6):
+            with socket.create_connection(self.tcp.server_address, timeout=3) as client:
+                client.sendall(b"Sem corte\n")
+                self.assertEqual(client.recv(1), b"")
+
+        self.assertEqual(self.history.list()[0]["reason"], "idle")
+
+
+class PortTests(unittest.TestCase):
     def test_second_instance_cannot_share_ports(self):
         for server_class, handler in ((PrinterServer, PrinterHandler), (WebServer, web_handler(None))):
             with self.subTest(server=server_class.__name__), server_class(("127.0.0.1", 0), handler) as first:
                 with self.assertRaises(OSError):
                     server_class(first.server_address, handler).server_close()
-
-    def test_tcp_http_history_and_clear(self):
-        with tempfile.TemporaryDirectory() as folder:
-            history = History(Path(folder) / "history.sqlite3")
-            with PrinterServer(("127.0.0.1", 0), PrinterHandler) as tcp:
-                tcp.history = history
-                with WebServer(("127.0.0.1", 0), web_handler(history)) as web:
-                    threading.Thread(target=tcp.serve_forever, daemon=True).start()
-                    threading.Thread(target=web.serve_forever, daemon=True).start()
-                    try:
-                        with socket.create_connection(tcp.server_address, timeout=3) as client:
-                            client.sendall(b"Primeiro\n\x1bwSegundo\n")
-                            client.shutdown(socket.SHUT_WR)
-                            self.assertEqual(client.recv(1), b"")
-                        self.assertEqual(len(History(Path(history.path)).list()), 2)
-                        url = f"http://127.0.0.1:{web.server_port}"
-                        with urlopen(url + "/api/jobs/1") as r:
-                            self.assertEqual(json.load(r)["lines"][0]["spans"][0]["text"], "Primeiro")
-                        with urlopen(url) as r:
-                            page = r.read()
-                            self.assertIn(f"EscBematech {VERSION} ·".encode(), page)
-                            self.assertNotIn(b"{{VERSION}}", page)
-                            self.assertEqual(r.headers["Server"].split()[0], f"EmuladorEscBematech/{VERSION}")
-                        with urlopen(url + "/style.css") as r:
-                            self.assertEqual(r.headers["Content-Type"], "text/css; charset=utf-8")
-                            self.assertIn(b"--accent", r.read())
-                        with urlopen(url + "/app.js") as r:
-                            self.assertIn(b"function refresh", r.read())
-                        with urlopen(url + "/paper.js") as r:
-                            self.assertIn(b"layoutPaper", r.read())
-                        with urlopen(url + "/qrcode.js") as r:
-                            self.assertIn(b"QR Code Generator", r.read())
-                        with urlopen(url + "/api/jobs") as r:
-                            tag = r.headers["ETag"]
-                        with self.assertRaises(HTTPError) as unchanged:
-                            urlopen(Request(url + "/api/jobs", headers={"If-None-Match": tag}))
-                        self.assertEqual((unchanged.exception.code, unchanged.exception.read()), (304, b""))
-                        unchanged.exception.close()
-                        with self.assertRaises(HTTPError) as denied:
-                            urlopen(
-                                Request(url + "/api/jobs", method="DELETE", headers={"Origin": "https://example.com"})
-                            )
-                        self.assertEqual(denied.exception.code, 403)
-                        denied.exception.close()
-                        # Página com DNS rebinding: Origin e Host coincidem, mas o nome não é IP.
-                        rebound = f"http://evil.example:{web.server_port}"
-                        for method in ("GET", "DELETE"):
-                            with self.subTest(method=method), self.assertRaises(HTTPError) as denied:
-                                urlopen(
-                                    Request(
-                                        url + "/api/jobs",
-                                        method=method,
-                                        headers={"Host": rebound[7:], "Origin": rebound},
-                                    )
-                                )
-                            self.assertEqual(denied.exception.code, 403)
-                            denied.exception.close()
-                        with urlopen(Request(url + "/api/jobs", headers={"Host": f"localhost:{web.server_port}"})) as r:
-                            self.assertEqual(len(json.load(r)), 2)
-                        self.assertEqual(len(history.list()), 2)
-                        with urlopen(Request(url + "/api/jobs", method="DELETE")) as r:
-                            self.assertEqual(json.load(r)["deleted"], 2)
-                        self.assertEqual(history.list(), [])
-                        self.assertIsNone(history.get(1))
-                        with socket.create_connection(tcp.server_address, timeout=3) as client:
-                            client.sendall(b"Novo\n\x1bw")
-                            client.shutdown(socket.SHUT_WR)
-                            self.assertEqual(client.recv(1), b"")
-                        with urlopen(url + "/api/jobs") as r:
-                            self.assertEqual(json.load(r)[0]["preview"], "Novo")
-                    finally:
-                        tcp.shutdown()
-                        web.shutdown()
 
 
 if __name__ == "__main__":

@@ -16,15 +16,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import urlopen
+
 from escpos import Parser
+
+VERSION = "1.1.0"
+SERVER_NAME = "EmuladorEscBematech"
 
 ROOT = Path(__file__).resolve().parent
 # Os recursos do .exe ficam em uma pasta temporária; o histórico precisa
 # permanecer ao lado do executável para sobreviver a cada nova execução.
 DATA_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT
-VERSION = "1.1.0"
-SERVER_NAME = "EmuladorEscBematech"
+
 IDLE_SECONDS = 60
+RECEIVE_TIMEOUT_SECONDS = 0.5
+MAX_CONNECTION_BYTES = 10 * 1024 * 1024
+PREVIEW_LENGTH = 90
+
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
@@ -43,9 +50,12 @@ def job_events(job):
 
 
 def job_summary(job):
-    preview = " ".join(s["text"] for line in job["lines"] for s in line["spans"]).strip()[:90]
+    text = " ".join(span["text"] for line in job["lines"] for span in line["spans"])
+    preview = text.strip()[:PREVIEW_LENGTH]
+
     if not preview:
-        preview = "; ".join(e["description"] for e in job_events(job))
+        preview = "; ".join(event["description"] for event in job_events(job))
+
     return job["created_at"], job["reason"], preview
 
 
@@ -53,48 +63,58 @@ class History:
     def __init__(self, path):
         self.path = str(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with closing(sqlite3.connect(self.path)) as db, db:
+
+        with closing(sqlite3.connect(self.path)) as connection, connection:
             # O resumo em colunas evita decodificar todos os payloads a cada atualização da lista.
-            db.execute(
+            connection.execute(
                 "CREATE TABLE IF NOT EXISTS jobs (id INTEGER PRIMARY KEY, payload TEXT NOT NULL,"
                 " created_at TEXT NOT NULL, reason TEXT NOT NULL, preview TEXT NOT NULL)"
             )
+
             # Com a tabela já criada, um banco somente leitura abre sem erro e só
             # falharia ao gravar a primeira impressão, depois que ela foi recebida.
             # Um comando de escrita que não afeta linhas já revela isso.
-            db.execute("DELETE FROM jobs WHERE 0")
+            connection.execute("DELETE FROM jobs WHERE 0")
 
     def save(self, job):
-        with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute(
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute(
                 "INSERT INTO jobs(payload, created_at, reason, preview) VALUES (?, ?, ?, ?)",
                 (json.dumps(job), *job_summary(job)),
             )
 
     def clear(self):
-        with closing(sqlite3.connect(self.path)) as db, db:
-            return db.execute("DELETE FROM jobs").rowcount
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            return connection.execute("DELETE FROM jobs").rowcount
 
     def version(self):
+        with closing(sqlite3.connect(self.path)) as connection:
+            row = connection.execute("SELECT id, created_at FROM jobs ORDER BY id DESC LIMIT 1").fetchone()
+
+        if not row:
+            return '"empty"'
+
         # A numeração recomeça depois de limpar o histórico; a data da última
         # impressão distingue a lista nova de uma antiga com o mesmo número.
-        with closing(sqlite3.connect(self.path)) as db:
-            row = db.execute("SELECT id, created_at FROM jobs ORDER BY id DESC LIMIT 1").fetchone()
-        return f'"{row[0]}-{row[1]}"' if row else '"vazio"'
+        job_id, created_at = row
+        return f'"{job_id}-{created_at}"'
 
     def list(self):
-        with closing(sqlite3.connect(self.path)) as db:
-            rows = db.execute("SELECT id, created_at, reason, preview FROM jobs ORDER BY id DESC").fetchall()
+        with closing(sqlite3.connect(self.path)) as connection:
+            rows = connection.execute("SELECT id, created_at, reason, preview FROM jobs ORDER BY id DESC").fetchall()
+
         return [
             dict(id=job_id, created_at=created_at, reason=reason, preview=preview)
             for job_id, created_at, reason, preview in rows
         ]
 
     def get(self, job_id):
-        with closing(sqlite3.connect(self.path)) as db:
-            row = db.execute("SELECT payload FROM jobs WHERE id=?", (job_id,)).fetchone()
+        with closing(sqlite3.connect(self.path)) as connection:
+            row = connection.execute("SELECT payload FROM jobs WHERE id=?", (job_id,)).fetchone()
+
         if not row:
             return None
+
         job = json.loads(row[0])
         job["events"] = job_events(job)
         return dict(id=job_id, **job)
@@ -103,32 +123,42 @@ class History:
 class PrinterHandler(socketserver.BaseRequestHandler):
     def handle(self):
         parser = Parser(self.server.history.save)
-        received, reason = 0, "disconnect"
+        reason = "disconnect"
+
         try:
-            # Timeout curto permite encerrar mesmo quando o select do Windows
-            # não acorda imediatamente após shutdown feito por outra thread.
-            self.request.settimeout(0.5)
-            last_received = time.monotonic()
-            while not self.server.stopping:
-                try:
-                    data = self.request.recv(4096)
-                except socket.timeout:
-                    if time.monotonic() - last_received >= IDLE_SECONDS:
-                        reason = "idle"
-                        break
-                    continue
-                if not data:
-                    break
-                last_received = time.monotonic()
-                received += len(data)
-                if received > 10 * 1024 * 1024:
-                    parser.warnings.add("Limite de 10 MiB por conexão atingido; impressão truncada.")
-                    break
-                parser.feed(data)
-        except (OSError, TimeoutError):
+            reason = self.receive(parser)
+        except OSError:
             pass
         finally:
             parser.close(reason)
+
+    def receive(self, parser):
+        # Timeout curto permite encerrar mesmo quando o select do Windows
+        # não acorda imediatamente após shutdown feito por outra thread.
+        self.request.settimeout(RECEIVE_TIMEOUT_SECONDS)
+        last_received = time.monotonic()
+        received = 0
+
+        while not self.server.stopping:
+            try:
+                data = self.request.recv(4096)
+            except socket.timeout:
+                if time.monotonic() - last_received >= IDLE_SECONDS:
+                    return "idle"
+                continue
+
+            if not data:
+                break
+
+            last_received = time.monotonic()
+            received += len(data)
+            if received > MAX_CONNECTION_BYTES:
+                parser.warnings.add("Limite de 10 MiB por conexão atingido; impressão truncada.")
+                break
+
+            parser.feed(data)
+
+        return "disconnect"
 
 
 class PortInUseError(OSError):
@@ -144,6 +174,7 @@ class ExclusivePortMixin:
     def server_bind(self):
         if sys.platform == "win32":
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+
         try:
             super().server_bind()
         except OSError as error:
@@ -167,6 +198,7 @@ class PrinterServer(ExclusivePortMixin, socketserver.ThreadingTCPServer):
                 self.shutdown_request(request)
                 return
             self.connections.add(request)
+
         try:
             super().process_request_thread(request, client_address)
         finally:
@@ -194,8 +226,10 @@ def trusted_host(host):
         name = urlsplit("//" + host).hostname
     except ValueError:
         return False
+
     if name == "localhost":
         return True
+
     try:
         ipaddress.ip_address(name or "")
     except ValueError:
@@ -210,49 +244,61 @@ def web_handler(history):
         def parse_request(self):
             if not super().parse_request():
                 return False
+
             if not trusted_host(self.headers.get("Host", "")):
                 self.send_error(403)
                 return False
+
             return True
 
         def do_DELETE(self):
             if self.path != "/api/jobs":
                 self.send_error(404)
                 return
+
             origin = self.headers.get("Origin")
-            if origin and origin != "http://" + self.headers.get("Host", ""):
+            same_origin = not origin or origin == "http://" + self.headers.get("Host", "")
+            if not same_origin or self.headers.get("Sec-Fetch-Site") == "cross-site":
                 self.send_error(403)
                 return
-            if self.headers.get("Sec-Fetch-Site") == "cross-site":
-                self.send_error(403)
-                return
+
             self.send_json(dict(deleted=history.clear()))
 
         def do_GET(self):
             path = self.path.split("?", 1)[0]
+
             if path in STATIC:
-                name, content_type = STATIC[path]
-                body = (ROOT / "web" / name).read_bytes().replace(b"{{VERSION}}", VERSION.encode())
-                self.send_body(body, content_type)
+                self.send_static(*STATIC[path])
             elif path == "/api/jobs":
-                tag = history.version()
-                if self.headers.get("If-None-Match") == tag:
-                    self.send_response(304)
-                    self.send_header("ETag", tag)
-                    self.end_headers()
-                else:
-                    self.send_json(history.list(), etag=tag)
+                self.send_job_list()
             elif path.startswith("/api/jobs/"):
-                try:
-                    job = history.get(int(path.rsplit("/", 1)[1]))
-                except ValueError:
-                    job = None
-                if job is None:
-                    self.send_error(404)
-                else:
-                    self.send_json(job)
+                self.send_job(path.rsplit("/", 1)[1])
             else:
                 self.send_error(404)
+
+        def send_static(self, name, content_type):
+            body = (ROOT / "web" / name).read_bytes().replace(b"{{VERSION}}", VERSION.encode())
+            self.send_body(body, content_type)
+
+        def send_job_list(self):
+            tag = history.version()
+
+            if self.headers.get("If-None-Match") == tag:
+                self.send_response(304)
+                self.send_header("ETag", tag)
+                self.end_headers()
+                return
+
+            self.send_json(history.list(), etag=tag)
+
+        def send_job(self, job_id):
+            job = history.get(int(job_id)) if job_id.isdigit() else None
+
+            if job is None:
+                self.send_error(404)
+                return
+
+            self.send_json(job)
 
         def send_json(self, value, etag=None):
             self.send_body(json.dumps(value).encode(), "application/json; charset=utf-8", etag)
@@ -276,12 +322,15 @@ def web_handler(history):
 @contextmanager
 def running_servers(config):
     history = History(config.db)
+
     with PrinterServer((config.host, config.port), PrinterHandler) as tcp:
         tcp.history = history
+
         with WebServer((config.host, config.web_port), web_handler(history)) as web:
-            threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in (tcp, web)]
+            threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in (tcp, web)]
             for thread in threads:
                 thread.start()
+
             try:
                 yield tcp, web
             finally:
@@ -290,6 +339,7 @@ def running_servers(config):
                 web.shutdown()
                 for thread in threads:
                     thread.join()
+
         # O contexto TCP espera os handlers gravarem as impressões pendentes.
 
 
@@ -302,12 +352,11 @@ def running_emulator(url):
 
 
 def port_number(value):
-    try:
-        port = int(value)
-    except ValueError:
-        port = -1
+    port = int(value) if value.isdigit() else -1
+
     if not 0 <= port <= 65535:
         raise argparse.ArgumentTypeError(f"porta inválida: {value} (use um número de 0 a 65535)")
+
     return port
 
 
@@ -318,48 +367,81 @@ class ArgumentParser(argparse.ArgumentParser):
 
             show_error(f"{message}\n\nUse --help para ver as opções.")
             raise SystemExit(2)
+
         super().error(message)
 
 
-def main(argv=None):
-    argv = argv if argv is not None else sys.argv[1:]
-    if (
-        sys.platform == "win32"
-        and sys.stdout is None
-        and any(flag in argv for flag in ("--console", "--licenses", "--version", "--help", "-h"))
-    ):
-        from tray import ensure_console
+def build_argument_parser():
+    parser = ArgumentParser(description="Emulador EscBematech com histórico persistente", add_help=False)
 
-        # O terminal não espera um programa de janela: o emulador ficaria rodando
-        # escondido e sem receber Ctrl+C. Ele ganha uma janela própria.
-        ensure_console(own_window="--console" in argv)
-    args = ArgumentParser(description="Emulador EscBematech com histórico persistente", add_help=False)
-    args.add_argument("-h", "--help", action="help", help="Mostra esta ajuda e sai")
-    args.add_argument(
+    parser.add_argument("-h", "--help", action="help", help="Mostra esta ajuda e sai")
+    parser.add_argument(
         "--host", default="127.0.0.1", help="Endereço de escuta; 0.0.0.0 aceita outros computadores (padrão: 127.0.0.1)"
     )
-    args.add_argument("--port", type=port_number, default=9100, help="Porta da impressora (padrão: 9100)")
-    args.add_argument(
+    parser.add_argument("--port", type=port_number, default=9100, help="Porta da impressora (padrão: 9100)")
+    parser.add_argument(
         "--web-port", type=port_number, default=9101, help="Porta do histórico no navegador (padrão: 9101)"
     )
-    args.add_argument(
+    parser.add_argument(
         "--db",
         type=Path,
         default=DATA_ROOT / "data" / "history.sqlite3",
         help="Arquivo do histórico (padrão: data/history.sqlite3 ao lado do programa)",
     )
-    args.add_argument(
+    parser.add_argument(
         "--version", action="version", version=f"Emulador EscBematech {VERSION}", help="Mostra a versão e sai"
     )
-    args.add_argument("--licenses", action="store_true", help="Exibe licenças das bibliotecas incluídas")
-    mode = args.add_mutually_exclusive_group()
+    parser.add_argument("--licenses", action="store_true", help="Exibe licenças das bibliotecas incluídas")
+
+    mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--tray", dest="tray", action="store_true", help="Executa na bandeja do Windows")
     mode.add_argument("--console", dest="tray", action="store_false", help="Executa no terminal")
-    args.set_defaults(tray=getattr(sys, "frozen", False) and sys.platform == "win32")
-    config = args.parse_args(argv)
+    parser.set_defaults(tray=getattr(sys, "frozen", False) and sys.platform == "win32")
+
+    return parser
+
+
+def needs_console(argv):
+    console_flags = ("--console", "--licenses", "--version", "--help", "-h")
+    return sys.platform == "win32" and sys.stdout is None and any(flag in argv for flag in console_flags)
+
+
+def serve(config, browser_host):
+    if config.tray and sys.platform != "win32":
+        raise RuntimeError("O modo bandeja está disponível apenas no Windows.")
+
+    with running_servers(config) as (tcp, web):
+        url = f"http://{browser_host}:{web.server_port}"
+
+        if config.tray:
+            from tray import run_tray
+
+            run_tray(url, port=tcp.server_address[1])
+            return
+
+        print(f"Impressora: {config.host}:{tcp.server_address[1]}")
+        print(f"Histórico: {url}")
+        print("Protocolo: EscBematech — 48 colunas")
+        print(f"Banco: {config.db.resolve()} — Ctrl+C para sair", flush=True)
+        threading.Event().wait()
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+
+    if needs_console(argv):
+        from tray import ensure_console
+
+        # O terminal não espera um programa de janela: o emulador ficaria rodando
+        # escondido e sem receber Ctrl+C. Ele ganha uma janela própria.
+        ensure_console(own_window="--console" in argv)
+
+    parser = build_argument_parser()
+    config = parser.parse_args(argv)
+
     if config.licenses:
         print((ROOT / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
-        return
+        return 0
 
     def fail(message):
         if config.tray and sys.platform == "win32":
@@ -367,30 +449,20 @@ def main(argv=None):
 
             show_error(message)
             return 1
-        args.error(message)
+
+        parser.error(message)
 
     browser_host = "127.0.0.1" if config.host == "0.0.0.0" else config.host
-    try:
-        if config.tray and sys.platform != "win32":
-            raise RuntimeError("O modo bandeja está disponível apenas no Windows.")
-        with running_servers(config) as (tcp, web):
-            url = f"http://{browser_host}:{web.server_port}"
-            if config.tray:
-                from tray import run_tray
 
-                run_tray(url, port=tcp.server_address[1])
-            else:
-                print(f"Impressora: {config.host}:{tcp.server_address[1]}")
-                print(f"Histórico: {url}")
-                print("Protocolo: EscBematech — 48 colunas")
-                print(f"Banco: {config.db.resolve()} — Ctrl+C para sair", flush=True)
-                threading.Event().wait()
+    try:
+        serve(config, browser_host)
     except KeyboardInterrupt:
         pass
     except PortInUseError as error:
         url = f"http://{browser_host}:{config.web_port}"
         if not running_emulator(url):
             return fail(str(error))
+
         if config.tray:
             webbrowser.open(url)
         else:
@@ -401,6 +473,7 @@ def main(argv=None):
         )
     except (OSError, RuntimeError) as error:
         return fail(str(error))
+
     return 0
 
 

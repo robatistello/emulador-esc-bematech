@@ -8,7 +8,7 @@ let currentJob = null;
 let lastSeen = null;
 let listed = false;
 
-const $ = (id) => document.getElementById(id);
+const byId = (id) => document.getElementById(id);
 const pageTitle = document.title;
 const REASONS = {
   cut: 'Finalizado por corte',
@@ -36,7 +36,7 @@ function updateUnread() {
   const unread = lastSeen === null ? 0 : jobs.filter((job) => job.id > lastSeen).length;
 
   document.title = (unread ? `(${unread}) ` : '') + pageTitle;
-  $('favicon').href = iconUrl(unread > 0);
+  byId('favicon').href = iconUrl(unread > 0);
 }
 
 function trackUnread() {
@@ -57,21 +57,21 @@ function date(value) {
 }
 
 function fileName(job, extension) {
-  const d = new Date(job.created_at);
-  const two = (n) => String(n).padStart(2, '0');
-  const day = `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
-  const time = `${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
+  const created = new Date(job.created_at);
+  const pad = (value) => String(value).padStart(2, '0');
+  const day = `${created.getFullYear()}-${pad(created.getMonth() + 1)}-${pad(created.getDate())}`;
+  const time = `${pad(created.getHours())}-${pad(created.getMinutes())}-${pad(created.getSeconds())}`;
 
   return `impressao-${job.id}_${day}_${time}.${extension}`;
 }
 
 function renderList() {
-  const query = $('search').value.toLocaleLowerCase();
+  const query = byId('search').value.toLocaleLowerCase();
   const number = /^\s*#\s*(\d+)\s*$/.exec(query);
   const matches = (job) =>
     number ? job.id === Number(number[1]) : (job.id + ' ' + job.preview).toLocaleLowerCase().includes(query);
 
-  $('list').replaceChildren();
+  byId('list').replaceChildren();
 
   for (const job of jobs.filter(matches)) {
     const label = document.createElement('strong');
@@ -85,18 +85,18 @@ function renderList() {
     button.append(label, preview);
     button.onclick = () => show(job.id);
 
-    $('list').append(button);
+    byId('list').append(button);
   }
 
-  if (!$('list').children.length) {
+  if (!byId('list').children.length) {
     const empty = document.createElement('p');
     empty.className = 'empty';
     empty.textContent = 'Nenhuma impressão encontrada.';
-    $('list').append(empty);
+    byId('list').append(empty);
   }
 
-  $('count').textContent = 'Histórico (' + jobs.length + ')';
-  $('clear').disabled = clearing || jobs.length === 0;
+  byId('count').textContent = 'Histórico (' + jobs.length + ')';
+  byId('clear').disabled = clearing || jobs.length === 0;
 }
 
 async function loadJob(id) {
@@ -122,8 +122,8 @@ async function show(id, loaded) {
       return;
     }
 
-    $('title').textContent = 'Impressão #' + id;
-    $('meta').textContent = date(job.created_at) + ' · ' + (REASONS[job.reason] || REASONS.disconnect);
+    byId('title').textContent = 'Impressão #' + id;
+    byId('meta').textContent = date(job.created_at) + ' · ' + (REASONS[job.reason] || REASONS.disconnect);
     currentJob = job;
     renderCurrent();
 
@@ -131,13 +131,13 @@ async function show(id, loaded) {
       URL.revokeObjectURL(downloadUrl);
     }
 
-    const bytes = Uint8Array.from(atob(job.raw_base64), (c) => c.charCodeAt(0));
+    const bytes = Uint8Array.from(atob(job.raw_base64), (character) => character.charCodeAt(0));
     downloadUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
-    $('download').href = downloadUrl;
-    $('download').download = fileName(job, 'bin');
-    $('download').hidden = false;
+    byId('download').href = downloadUrl;
+    byId('download').download = fileName(job, 'bin');
+    byId('download').hidden = false;
   } catch (error) {
-    $('status').textContent = error.message;
+    byId('status').textContent = error.message;
   }
 }
 
@@ -147,19 +147,19 @@ function renderCurrent() {
   }
 
   const events = currentJob.events;
-  $('events').replaceChildren();
-  $('events').hidden = events.length === 0;
+  byId('events').replaceChildren();
+  byId('events').hidden = events.length === 0;
 
   for (const event of events) {
     const description = document.createElement('p');
     description.textContent = event.description;
-    $('events').append(description);
+    byId('events').append(description);
   }
 
-  $('paper-scroll').hidden = events.length > 0 && currentJob.lines.length === 0;
-  const qrWarnings = renderPaper($('paper'), currentJob.lines);
-  $('image').hidden = currentJob.lines.length === 0;
-  $('warnings').textContent = [...currentJob.warnings, ...qrWarnings].join('\n');
+  byId('paper-scroll').hidden = events.length > 0 && currentJob.lines.length === 0;
+  const qrWarnings = renderPaper(byId('paper'), currentJob.lines);
+  byId('image').hidden = currentJob.lines.length === 0;
+  byId('warnings').textContent = [...currentJob.warnings, ...qrWarnings].join('\n');
 }
 
 function showEmpty(message) {
@@ -167,9 +167,9 @@ function showEmpty(message) {
   empty.className = 'empty';
   empty.textContent = message;
 
-  $('title').textContent = 'Selecione uma impressão';
-  $('paper').replaceChildren(empty);
-  $('paper-scroll').hidden = false;
+  byId('title').textContent = 'Selecione uma impressão';
+  byId('paper').replaceChildren(empty);
+  byId('paper-scroll').hidden = false;
 }
 
 async function refresh() {
@@ -196,17 +196,17 @@ async function refresh() {
         trackUnread();
 
         const newest = jobs.length ? jobs[0].id : 0;
-        if ($('follow').checked && listed) {
+        if (byId('follow').checked && listed) {
           await followNewest(newest < previous ? 0 : previous);
         }
         listed = true;
       }
 
-      $('status').textContent = 'Conectado · atualização automática a cada 2 segundos';
+      byId('status').textContent = 'Conectado · atualização automática a cada 2 segundos';
 
       if (selected === null && jobs.length) {
         await show(jobs[0].id);
-      } else if (!jobs.length && !$('paper').children.length) {
+      } else if (!jobs.length && !byId('paper').children.length) {
         showEmpty(
           'Envie uma impressão para a porta TCP configurada. ' +
             'As impressões anteriores ficam salvas aqui, inclusive após reiniciar o servidor.',
@@ -214,7 +214,7 @@ async function refresh() {
       }
     }
   } catch (error) {
-    $('status').textContent = 'Servidor indisponível. Tentando reconectar…';
+    byId('status').textContent = 'Servidor indisponível. Tentando reconectar…';
   }
 
   setTimeout(refresh, 2000);
@@ -258,7 +258,7 @@ async function clearHistory() {
     listTag = '';
     selected = null;
     currentJob = null;
-    $('search').value = '';
+    byId('search').value = '';
     trackUnread();
 
     if (downloadUrl) {
@@ -266,18 +266,18 @@ async function clearHistory() {
       downloadUrl = null;
     }
 
-    $('download').hidden = true;
-    $('download').removeAttribute('href');
-    $('image').hidden = true;
-    $('meta').textContent = '';
-    $('warnings').textContent = '';
-    $('events').replaceChildren();
-    $('events').hidden = true;
+    byId('download').hidden = true;
+    byId('download').removeAttribute('href');
+    byId('image').hidden = true;
+    byId('meta').textContent = '';
+    byId('warnings').textContent = '';
+    byId('events').replaceChildren();
+    byId('events').hidden = true;
 
     showEmpty('Histórico limpo. As próximas impressões aparecerão aqui.');
-    $('status').textContent = 'Histórico apagado.';
+    byId('status').textContent = 'Histórico apagado.';
   } catch (error) {
-    $('status').textContent = error.message;
+    byId('status').textContent = error.message;
   } finally {
     clearing = false;
     renderList();
@@ -286,7 +286,7 @@ async function clearHistory() {
 
 async function downloadImage() {
   try {
-    const url = URL.createObjectURL(await paperPng($('paper')));
+    const url = URL.createObjectURL(await paperPng(byId('paper')));
 
     const link = document.createElement('a');
     link.href = url;
@@ -295,15 +295,15 @@ async function downloadImage() {
 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    $('status').textContent = error.message;
+    byId('status').textContent = error.message;
   }
 }
 
 function updateThemeButton() {
   const label = document.documentElement.dataset.theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro';
 
-  $('theme').title = label;
-  $('theme').setAttribute('aria-label', label);
+  byId('theme').title = label;
+  byId('theme').setAttribute('aria-label', label);
 }
 
 function toggleTheme() {
@@ -311,7 +311,7 @@ function toggleTheme() {
 
   document.documentElement.dataset.theme = theme;
   try {
-    localStorage.setItem('tema', theme);
+    localStorage.setItem('theme', theme);
   } catch {}
 
   updateThemeButton();
@@ -319,12 +319,12 @@ function toggleTheme() {
 
 function toggleFollow() {
   try {
-    localStorage.setItem('mostrar-novas', $('follow').checked ? '1' : '0');
+    localStorage.setItem('show-new-jobs', byId('follow').checked ? '1' : '0');
   } catch {}
 
-  if ($('follow').checked) {
+  if (byId('follow').checked) {
     followNewest(0).catch((error) => {
-      $('status').textContent = error.message;
+      byId('status').textContent = error.message;
     });
   }
 }
@@ -340,19 +340,19 @@ systemDark.addEventListener('change', () => {
   updateThemeButton();
 });
 
-$('clear').onclick = clearHistory;
-$('image').onclick = downloadImage;
-$('theme').onclick = toggleTheme;
-$('follow').onchange = toggleFollow;
-$('search').oninput = renderList;
+byId('clear').onclick = clearHistory;
+byId('image').onclick = downloadImage;
+byId('theme').onclick = toggleTheme;
+byId('follow').onchange = toggleFollow;
+byId('search').oninput = renderList;
 
 try {
-  $('follow').checked = localStorage.getItem('mostrar-novas') === '1';
+  byId('follow').checked = localStorage.getItem('show-new-jobs') === '1';
 } catch {}
 
 // Barras clássicas ocupam espaço e as sobrepostas não; o recuo completa os 12px
 // para os itens alinharem com a busca e o botão nos dois casos.
-$('list').style.paddingRight = Math.max(0, 12 - ($('list').offsetWidth - $('list').clientWidth)) + 'px';
+byId('list').style.paddingRight = Math.max(0, 12 - (byId('list').offsetWidth - byId('list').clientWidth)) + 'px';
 
 updateUnread();
 updateThemeButton();

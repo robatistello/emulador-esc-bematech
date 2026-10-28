@@ -31,10 +31,10 @@
 
     const count = qr.getModuleCount();
     const size = count + QR_BORDER * 2;
-    const isDark = (row, col) => row >= 0 && row < count && col >= 0 && col < count && qr.isDark(row, col);
+    const isDark = (row, column) => row >= 0 && row < count && column >= 0 && column < count && qr.isDark(row, column);
 
     return Array.from({ length: size }, (_, row) =>
-      Array.from({ length: size }, (_, col) => (isDark(row - QR_BORDER, col - QR_BORDER) ? '1' : '0')).join(''),
+      Array.from({ length: size }, (_, column) => (isDark(row - QR_BORDER, column - QR_BORDER) ? '1' : '0')).join(''),
     );
   }
 
@@ -125,9 +125,9 @@
   function renderQr(svg, { matrix, moduleSize, size, x }) {
     let path = '';
     for (let y = 0; y < matrix.length; y++) {
-      for (let col = 0; col < matrix[y].length; col++) {
-        if (matrix[y][col] === '1') {
-          path += `M${x + col * moduleSize} ${y * moduleSize}h${moduleSize}v${moduleSize}h${-moduleSize}z`;
+      for (let column = 0; column < matrix[y].length; column++) {
+        if (matrix[y][column] === '1') {
+          path += `M${x + column * moduleSize} ${y * moduleSize}h${moduleSize}v${moduleSize}h${-moduleSize}z`;
         }
       }
     }
