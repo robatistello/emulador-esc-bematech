@@ -172,6 +172,40 @@ function showEmpty(message) {
   byId('paper-scroll').hidden = false;
 }
 
+function resetViewer() {
+  selected = null;
+  currentJob = null;
+
+  if (downloadUrl) {
+    URL.revokeObjectURL(downloadUrl);
+    downloadUrl = null;
+  }
+
+  byId('download').hidden = true;
+  byId('download').removeAttribute('href');
+  byId('image').hidden = true;
+  byId('meta').textContent = '';
+  byId('warnings').textContent = '';
+  byId('events').replaceChildren();
+  byId('events').hidden = true;
+
+  showEmpty('Histórico limpo. As próximas impressões aparecerão aqui.');
+  renderList();
+}
+
+function selectedJobGone() {
+  if (selected === null) {
+    return false;
+  }
+
+  const summary = jobs.find((job) => job.id === selected);
+  const loaded = currentJob !== null && currentJob.id === selected;
+
+  // A numeração recomeça depois de limpar o histórico; a data distingue uma
+  // impressão nova da antiga que tinha o mesmo número.
+  return !summary || (loaded && summary.created_at !== currentJob.created_at);
+}
+
 async function refresh() {
   const version = generation;
 
@@ -194,6 +228,10 @@ async function refresh() {
         jobs = await response.json();
         renderList();
         trackUnread();
+
+        if (selectedJobGone()) {
+          resetViewer();
+        }
 
         const newest = jobs.length ? jobs[0].id : 0;
         if (byId('follow').checked && listed) {
@@ -256,25 +294,10 @@ async function clearHistory() {
     generation++;
     jobs = [];
     listTag = '';
-    selected = null;
-    currentJob = null;
     byId('search').value = '';
     trackUnread();
 
-    if (downloadUrl) {
-      URL.revokeObjectURL(downloadUrl);
-      downloadUrl = null;
-    }
-
-    byId('download').hidden = true;
-    byId('download').removeAttribute('href');
-    byId('image').hidden = true;
-    byId('meta').textContent = '';
-    byId('warnings').textContent = '';
-    byId('events').replaceChildren();
-    byId('events').hidden = true;
-
-    showEmpty('Histórico limpo. As próximas impressões aparecerão aqui.');
+    resetViewer();
     byId('status').textContent = 'Histórico apagado.';
   } catch (error) {
     byId('status').textContent = error.message;
